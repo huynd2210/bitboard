@@ -11,8 +11,10 @@ class Bitboard:
 class BitboardManager:
     def __init__(self):
         self.bitboardManager = {}
+        self.sizeI = 0
+        self.sizeJ = 0
 
-    def translateBoardToBitboards(self, board):
+    def translateMailboxToBitboards(self, board):
         sizeI = len(board)
         sizeJ = len(board[0])
         for i in range(sizeI):
@@ -22,9 +24,20 @@ class BitboardManager:
                     self.buildBitboard(piece, sizeI, sizeJ)
                 self.setPiece(piece, i, j)
 
+    def translateBitboardsToMailbox(self):
+        board = [['.' * self.sizeJ] * self.sizeI]
+        for bitboardId, bitboard in self.bitboardManager.items():
+            for i in range(bitboard.sizeI):
+                for j in range(bitboard.sizeJ):
+                    if self.isPieceSet(bitboardId, i, j):
+                        board[i][j] = bitboardId
+        return board
+
     def buildBitboard(self, bitboardId, sizeI, sizeJ):
         bitboardId = self.enforceStringTypeId(bitboardId)
         self.bitboardManager[bitboardId] = Bitboard(0, sizeI, sizeJ)
+        self.sizeI = sizeI
+        self.sizeJ = sizeJ
 
     def showBitboard(self, bitboardId):
         bitboard = self.bitboardManager[bitboardId]
@@ -75,11 +88,23 @@ class BitboardManager:
         piecePosition = (i * bitboard.sizeJ) + j
         bitboard.data = bitboard.data & ~(1 << piecePosition)
 
+    # can be optimized using bit shifts
     def movePiece(self, bitboardId, fromI, fromJ, toI, toJ):
         if self.isPieceSet(bitboardId, fromI, fromJ):
             self.deletePiece(bitboardId, fromI, fromJ)
             self.setPiece(bitboardId, toI, toJ)
 
+    def moveAndCapturePiece(self, bitboardId, fromI, fromJ, toI, toJ, opponentBitboardIdList):
+        for id, data in self.bitboardManager.items():
+            if (
+                    bitboardId != id
+                    and id in opponentBitboardIdList
+                    and self.isPieceSet(id, toI, toJ)
+            ):
+                self.movePiece(bitboardId, fromI, fromJ, toI, toJ)
+                self.deletePiece(id, toI, toJ)
+
+    # can be optimized by using mask and or operation
     def setAllBits(self, bitboardId):
         bitboardId = self.enforceStringTypeId(bitboardId)
         bitboard = self.bitboardManager[bitboardId]
@@ -112,6 +137,7 @@ class BitboardManager:
             bitboardId = str(bitboardId)
         return bitboardId
 
+
 if __name__ == '__main__':
     bm = BitboardManager()
     # bm.buildBitboard('a', 4, 5)
@@ -122,5 +148,6 @@ if __name__ == '__main__':
     # bm.showBitboard('a')
 
     board = [[0, 0, 0], [0, 0, 0], [1, 1, 1], [2, 2, 2]]
-    bm.translateBoardToBitboards(board)
+    bm.translateMailboxToBitboards(board)
     bm.showAllBitboard()
+    print(bm.translateBitboardsToMailbox())
