@@ -94,6 +94,17 @@ class BitboardManager:
             self.deletePiece(bitboardId, fromI, fromJ)
             self.setPiece(bitboardId, toI, toJ)
 
+    # TODO: test movePieceOptimized for functionality and performance against movePiece
+    def movePieceOptimized(self, bitboardId, fromI, fromJ, toI, toJ):
+        bitboardId = self.enforceStringTypeId(bitboardId)
+        bitboard = self.bitboardManager[bitboardId]
+        if not self.isInBound(bitboard, fromI, fromJ) or not self.isInBound(bitboard, toI, toJ):
+            return
+        if self.isPieceSet(bitboardId, fromI, fromJ):
+            fromPosition = (fromI * bitboard.sizeJ) + fromJ
+            toPosition = (toI * bitboard.sizeJ) + toJ
+            bitboard.data ^= ((1 << fromPosition) | (1 << toPosition))
+
     def moveAndCapturePiece(self, bitboardId, fromI, fromJ, toI, toJ, opponentBitboardIdList):
         for id, data in self.bitboardManager.items():
             if (
@@ -132,22 +143,30 @@ class BitboardManager:
         self.setPiece(bitboardId, i - 1, j + 1)
         self.setPiece(bitboardId, i - 1, j - 1)
 
+    def combineBitboard(self, idList):
+        result = 0
+        for bitboardId in idList:
+            result |= self.bitboardManager[bitboardId]
+        return result
+
     def enforceStringTypeId(self, bitboardId):
         if type(bitboardId) is not str:
             bitboardId = str(bitboardId)
         return bitboardId
 
-
 if __name__ == '__main__':
     bm = BitboardManager()
-    # bm.buildBitboard('a', 4, 5)
-    # print(bm.bitboardManager['a'].data)
-    # # bm.setAllBits('a')
+    bm.buildBitboard('a', 4, 5)
+    print(bm.bitboardManager['a'].data)
+    # bm.setAllBits('a')
+    bm.setPiece('a', 2, 2)
     # bm.setNeighbors('a', 1,1)
     # bm.deleteNeighbors('a',1,1)
-    # bm.showBitboard('a')
+    # bm.movePiece('a', 2, 2, 0, 0)
+    bm.movePieceOptimized('a',2,2,0,0)
+    bm.showBitboard('a')
 
-    board = [[0, 0, 0], [0, 0, 0], [1, 1, 1], [2, 2, 2]]
-    bm.translateMailboxToBitboards(board)
-    bm.showAllBitboard()
-    print(bm.translateBitboardsToMailbox())
+    # board = [[0, 0, 0], [0, 0, 0], [1, 1, 1], [2, 2, 2]]
+    # bm.translateMailboxToBitboards(board)
+    # bm.showAllBitboard()
+    # print(bm.translateBitboardsToMailbox())
