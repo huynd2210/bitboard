@@ -7,12 +7,21 @@ class Bitboard:
         self.sizeI = sizeI
         self.sizeJ = sizeJ
 
+    def __str__(self):
+        return str(self.data)
 
+#start from top left to bottom right, i.e 1 = 1 at (0,0)
 class BitboardManager:
     def __init__(self):
         self.bitboardManager = {}
         self.sizeI = 0
         self.sizeJ = 0
+
+    def __getitem__(self, item):
+        return self.bitboardManager[item]
+
+    def __setitem__(self, key, value):
+        self.bitboardManager[key] = value
 
     def translateMailboxToBitboards(self, board):
         sizeI = len(board)
@@ -154,19 +163,40 @@ class BitboardManager:
             bitboardId = str(bitboardId)
         return bitboardId
 
+    def isBitboardContainsSetBitAtRow(self, i, bitboardId):
+        mask = 1
+        # build mask
+        for _ in range(self.sizeJ - 1):
+            mask = (mask * 2) + 1
+        mask <<= i * self.sizeJ
+
+
+
 if __name__ == '__main__':
     bm = BitboardManager()
-    bm.buildBitboard('a', 4, 5)
-    print(bm.bitboardManager['a'].data)
-    # bm.setAllBits('a')
-    bm.setPiece('a', 2, 2)
-    # bm.setNeighbors('a', 1,1)
-    # bm.deleteNeighbors('a',1,1)
-    # bm.movePiece('a', 2, 2, 0, 0)
-    bm.movePieceOptimized('a',2,2,0,0)
+    bm.buildBitboard('a', 4, 3)
+    bm['a'].data = 1
+    bm['a'].data *= 2
+    bm['a'].data += 1
+
+    print(bm['a'])
     bm.showBitboard('a')
 
-    # board = [[0, 0, 0], [0, 0, 0], [1, 1, 1], [2, 2, 2]]
-    # bm.translateMailboxToBitboards(board)
-    # bm.showAllBitboard()
-    # print(bm.translateBitboardsToMailbox())
+
+
+# if __name__ == '__main__':
+#     bm = BitboardManager()
+#     bm.buildBitboard('a', 4, 5)
+#     print(bm.bitboardManager['a'].data)
+#     # bm.setAllBits('a')
+#     bm.setPiece('a', 2, 2)
+#     # bm.setNeighbors('a', 1,1)
+#     # bm.deleteNeighbors('a',1,1)
+#     # bm.movePiece('a', 2, 2, 0, 0)
+#     bm.movePieceOptimized('a',2,2,0,0)
+#     bm.showBitboard('a')
+#
+#     # board = [[0, 0, 0], [0, 0, 0], [1, 1, 1], [2, 2, 2]]
+#     # bm.translateMailboxToBitboards(board)
+#     # bm.showAllBitboard()
+#     # print(bm.translateBitboardsToMailbox())
