@@ -104,6 +104,10 @@ class BitboardManager:
             self.deletePiece(bitboardId, fromI, fromJ)
             self.setPiece(bitboardId, toI, toJ)
 
+    def move(self, move):
+        bitboardId, fromI, fromJ, toI, toJ = move
+        self.movePieceOptimized(bitboardId, fromI, fromJ, toI, toJ)
+
     # TODO: test movePieceOptimized for functionality and performance against movePiece
     def movePieceOptimized(self, bitboardId, fromI, fromJ, toI, toJ):
         bitboardId = self.enforceStringTypeId(bitboardId)
@@ -126,7 +130,7 @@ class BitboardManager:
                 self.movePiece(bitboardId, fromI, fromJ, toI, toJ)
                 self.deletePiece(opponentBitboardId, toI, toJ)
 
-    #classical game, piece cannot capture same piece type
+    # classical game, piece cannot capture same piece type
     def isLegalMove(self, fromI, fromJ, toI, toJ):
         if fromI == toI and fromJ == toJ:
             return False
@@ -135,17 +139,17 @@ class BitboardManager:
             return False
 
         for bitboardId, bitboard in self.bitboardManager.items():
-            if bitboard
 
             # basically self.isPieceSet but without checks
             originPiecePosition = (fromI * bitboard.sizeJ) + fromJ
-            destinationPiecePosition = (toI * bitboard.sizeJ) + toJ\
-            #if origin is not set then false
+            destinationPiecePosition = (toI * bitboard.sizeJ) + toJ \
+                # if origin is not set then false
             if ((bitboard.data >> originPiecePosition) & 1) == 0:
                 return False
 
-            #if origin and destination is same then move is not legal
-            if ((bitboard.data >> originPiecePosition) & 1) == 1 and ((bitboard.data >> destinationPiecePosition) & 1) == 1:
+            # if origin and destination is same then move is not legal
+            if ((bitboard.data >> originPiecePosition) & 1) == 1 and (
+                    (bitboard.data >> destinationPiecePosition) & 1) == 1:
                 return False
 
         return True
@@ -196,30 +200,45 @@ class BitboardManager:
             mask = (mask * 2) + 1
         mask <<= i * self.sizeJ
         return self[bitboardId].data & mask >= 1
+
     # todo
     def isBitboardContainsSetBitAtColumn(self, j, bitboardId):
         pass
 
+    #params: bitboardId (piece), fromI, fromJ, possibleMovements,
     def generateMoveForAPiece(self, bitboardId, i, j, movements):
-        if self.isPieceSet()
+        if not self.isPieceSet(bitboardId, i, j):
+            return []
+
+        possibleMoves = []
         for offsets in movements:
-            offsetI, offsetJ  = offsets
+            offsetI, offsetJ = offsets
+            if self.isLegalMove(i, j, i + offsetI, j + offsetJ):
+                possibleMoves.append((bitboardId, i, j, i + offsetI, j + offsetJ))
+        return possibleMoves
 
+    #pieceMovements is key value: bitboardId:[(offsetI, offsetJ]
+    #pieceLocaions is key value: bitboardId:[(i,j)]
+    def generateAllPossibleMoves(self, pieceMovements, pieceLocations):
+        allPossibleMoves = {}
+        for pieceMovement, pieceLocation in zip(pieceMovements, pieceLocations):
+            bitboardIdOfPieceMovement, offsets = pieceMovement
+            bitboardIdOfPieceLocation, location = pieceLocation
+    pass
 
-    def generateAllPossibleMoves(self, pieceMovements):
-        pass
 
 if __name__ == '__main__':
-    bm = BitboardManager()
-    bm.buildBitboard('a', 4, 3)
-    bm['a'].data = 1
-    bm['a'].data *= 2
-    bm['a'].data += 1
-    bm.setPiece('a', 1, 1)
-    print(bm['a'])
-    bm.showBitboard('a')
 
-    print(bm.isBitboardContainsSetBitAtRow(2, 'a'))
+    # bm = BitboardManager()
+    # bm.buildBitboard('a', 4, 3)
+    # bm['a'].data = 1
+    # bm['a'].data *= 2
+    # bm['a'].data += 1
+    # bm.setPiece('a', 1, 1)
+    # print(bm['a'])
+    # bm.showBitboard('a')
+    #
+    # print(bm.isBitboardContainsSetBitAtRow(2, 'a'))
 
 # if __name__ == '__main__':
 #     bm = BitboardManager()
