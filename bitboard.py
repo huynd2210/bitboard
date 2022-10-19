@@ -206,39 +206,42 @@ class BitboardManager:
         pass
 
     #params: bitboardId (piece), fromI, fromJ, possibleMovements,
-    def generateMoveForAPiece(self, bitboardId, i, j, movements):
-        if not self.isPieceSet(bitboardId, i, j):
+    #returns: list of moves (bitboardId, fromI, fromJ, toI, toJ)
+    def generateMoveForAPiece(self, bitboardId, fromI, fromJ, movements):
+        if not self.isPieceSet(bitboardId, fromI, fromJ):
             return []
 
         possibleMoves = []
         for offsets in movements:
             offsetI, offsetJ = offsets
-            if self.isLegalMove(i, j, i + offsetI, j + offsetJ):
-                possibleMoves.append((bitboardId, i, j, i + offsetI, j + offsetJ))
+            if self.isLegalMove(fromI, fromJ, fromI + offsetI, fromJ + offsetJ):
+                possibleMoves.append((bitboardId, fromI, fromJ, fromI + offsetI, fromJ + offsetJ))
         return possibleMoves
 
     #pieceMovements is key value: bitboardId:[(offsetI, offsetJ]
     #pieceLocaions is key value: bitboardId:[(i,j)]
+    #returns: key value: bitboardId:[moves] (see generateMoveForAPiece)
     def generateAllPossibleMoves(self, pieceMovements, pieceLocations):
         allPossibleMoves = {}
-        for pieceMovement, pieceLocation in zip(pieceMovements, pieceLocations):
-            bitboardIdOfPieceMovement, offsets = pieceMovement
-            bitboardIdOfPieceLocation, location = pieceLocation
-    pass
+        for bitboardId in pieceMovements.keys():
+            movementOffsets = pieceMovements[bitboardId]
+            fromI, fromJ = pieceLocations[bitboardId]
+            allPossibleMoves[bitboardId] = self.generateMoveForAPiece(bitboardId, fromI, fromJ, movementOffsets)
+        return allPossibleMoves
 
 
 if __name__ == '__main__':
 
-    # bm = BitboardManager()
-    # bm.buildBitboard('a', 4, 3)
-    # bm['a'].data = 1
-    # bm['a'].data *= 2
-    # bm['a'].data += 1
-    # bm.setPiece('a', 1, 1)
-    # print(bm['a'])
-    # bm.showBitboard('a')
-    #
-    # print(bm.isBitboardContainsSetBitAtRow(2, 'a'))
+    bm = BitboardManager()
+    bm.buildBitboard('a', 4, 3)
+    bm['a'].data = 1
+    bm['a'].data *= 2
+    bm['a'].data += 1
+    bm.setPiece('a', 1, 1)
+    print(bm['a'])
+    bm.showBitboard('a')
+
+    print(bm.isBitboardContainsSetBitAtRow(2, 'a'))
 
 # if __name__ == '__main__':
 #     bm = BitboardManager()
