@@ -74,6 +74,9 @@ class BitboardManager:
     def isInBound(self, i, j):
         return 0 <= i < self.sizeI and 0 <= j < self.sizeJ
 
+    def isEmpty(self, bitboardId):
+        return self.bitboardManager[bitboardId].data == 0
+
     def isPieceSet(self, bitboardId, i, j):
         bitboardId = self.enforceStringTypeId(bitboardId)
         bitboard = self.bitboardManager[bitboardId]
@@ -162,6 +165,16 @@ class BitboardManager:
             for j in range(bitboard.sizeJ):
                 self.setPiece(bitboardId, i, j)
 
+    def setAllBitsAtRow(self, bitboardId, i):
+        bitboardId = self.enforceStringTypeId(bitboardId)
+        mask = 1
+        # build mask
+        for _ in range(self.sizeJ - 1):
+            mask = (mask * 2) + 1
+        mask <<= i * self.sizeJ
+        self[bitboardId].data | mask
+
+
     def deleteNeighbors(self, bitboardId, i, j):
         self.deletePiece(bitboardId, i + 1, j)
         self.deletePiece(bitboardId, i - 1, j)
@@ -193,7 +206,7 @@ class BitboardManager:
             bitboardId = str(bitboardId)
         return bitboardId
 
-    def isBitboardContainsSetBitAtRow(self, i, bitboardId):
+    def isRowAnyPieceSet(self, bitboardId, i):
         mask = 1
         # build mask
         for _ in range(self.sizeJ - 1):
@@ -205,8 +218,8 @@ class BitboardManager:
     def isBitboardContainsSetBitAtColumn(self, j, bitboardId):
         pass
 
-    #params: bitboardId (piece), fromI, fromJ, possibleMovements,
-    #returns: list of moves (bitboardId, fromI, fromJ, toI, toJ)
+    # params: bitboardId (piece), fromI, fromJ, possibleMovements,
+    # returns: list of moves (bitboardId, fromI, fromJ, toI, toJ)
     def generateMoveForAPiece(self, bitboardId, fromI, fromJ, movements):
         if not self.isPieceSet(bitboardId, fromI, fromJ):
             return []
@@ -218,9 +231,9 @@ class BitboardManager:
                 possibleMoves.append((bitboardId, fromI, fromJ, fromI + offsetI, fromJ + offsetJ))
         return possibleMoves
 
-    #pieceMovements is key value: bitboardId:[(offsetI, offsetJ]
-    #pieceLocaions is key value: bitboardId:[(i,j)]
-    #returns: key value: bitboardId:[moves] (see generateMoveForAPiece)
+    # pieceMovements is key value: bitboardId:[(offsetI, offsetJ]
+    # pieceLocaions is key value: bitboardId:[(i,j)]
+    # returns: key value: bitboardId:[moves] (see generateMoveForAPiece)
     def generateAllPossibleMoves(self, pieceMovements, pieceLocations):
         allPossibleMoves = {}
         for bitboardId in pieceMovements.keys():
@@ -231,7 +244,6 @@ class BitboardManager:
 
 
 if __name__ == '__main__':
-
     bm = BitboardManager()
     bm.buildBitboard('a', 4, 3)
     bm['a'].data = 1
@@ -241,7 +253,7 @@ if __name__ == '__main__':
     print(bm['a'])
     bm.showBitboard('a')
 
-    print(bm.isBitboardContainsSetBitAtRow(2, 'a'))
+    print(bm.isRowAnyPieceSet(2, 'a'))
 
 # if __name__ == '__main__':
 #     bm = BitboardManager()
