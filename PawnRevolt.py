@@ -8,7 +8,6 @@ from bitboard import BitboardManager
 class Game(TwoPlayerGame):
     def __init__(self, players=None, sizeI=7, sizeJ=5):
         self.bm = BitboardManager()
-        self._initBoard(sizeI, sizeJ)
         if players is None:
             self.players = [AI_Player(None), AI_Player(None)]
         else:
@@ -18,6 +17,9 @@ class Game(TwoPlayerGame):
         self.sizeI = sizeI
         self.sizeJ = sizeJ
         self.hasLost = None
+        self.firstPlayerPieceCoords = []
+        self.secondPlayerPieceCoords = []
+        self._initBoard(sizeI, sizeJ)
 
     def possible_moves(self):
 
@@ -44,6 +46,20 @@ class Game(TwoPlayerGame):
         self.bm.setAllBitsAtRow('2', 1)
         self.bm.setAllBitsAtRow('1', sizeI - 2)
         self.bm.setAllBitsAtRow('1', sizeI - 1)
+        for i in range(2):
+            for j in range(5):
+                self.secondPlayerPieceCoords.append((i,j))
+
+        for i in range(sizeI - 2, sizeI):
+            for j in range(5):
+                self.firstPlayerPieceCoords.append((i,j))
+
+    def getAllPossibleMovesFor1(self):
+        possibleMoves = []
+        allMovesForBluePawn = [(-1, 0), (-1, 1), (-1, -1)]
+        bluePawnMovements = {'1'}
+        self.bm.generateAllPossibleMoves()
+
 
 
 

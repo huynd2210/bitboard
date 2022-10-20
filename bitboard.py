@@ -255,6 +255,7 @@ if __name__ == '__main__':
 
     print(bm.isRowAnyPieceSet(2, 'a'))
 
+
 # if __name__ == '__main__':
 #     bm = BitboardManager()
 #     bm.buildBitboard('a', 4, 5)
