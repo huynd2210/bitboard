@@ -172,7 +172,7 @@ class BitboardManager:
         for _ in range(self.sizeJ - 1):
             mask = (mask * 2) + 1
         mask <<= i * self.sizeJ
-        self[bitboardId].data | mask
+        self[bitboardId].data = self[bitboardId].data | mask
 
 
     def deleteNeighbors(self, bitboardId, i, j):
@@ -245,16 +245,11 @@ class BitboardManager:
 
 if __name__ == '__main__':
     bm = BitboardManager()
-    bm.buildBitboard('a', 4, 3)
-    bm['a'].data = 1
-    bm['a'].data *= 2
-    bm['a'].data += 1
-    bm.setPiece('a', 1, 1)
-    print(bm['a'])
-    bm.showBitboard('a')
-
-    print(bm.isRowAnyPieceSet(2, 'a'))
-
+    bm.buildBitboard('1', 4, 3)
+    bm.setPiece('1', 3, 1)
+    bm.showBitboard('1')
+    bluePawnMovements = {'1': [(-1, 0), (-1, 1), (-1, -1)]}
+    print(bm.generateAllPossibleMoves(bluePawnMovements, {'1': (3, 1)}))
 
 # if __name__ == '__main__':
 #     bm = BitboardManager()
