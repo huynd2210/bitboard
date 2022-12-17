@@ -1,5 +1,5 @@
+import time
 from functools import lru_cache
-
 
 class Bitboard:
     def __init__(self, data, sizeI, sizeJ):
@@ -111,12 +111,11 @@ class BitboardManager:
         bitboardId, fromI, fromJ, toI, toJ = move
         self.movePieceOptimized(bitboardId, fromI, fromJ, toI, toJ)
 
-    # TODO: test movePieceOptimized for functionality and performance against movePiece
     def movePieceOptimized(self, bitboardId, fromI, fromJ, toI, toJ):
-        bitboardId = self.enforceStringTypeId(bitboardId)
-        bitboard = self.bitboardManager[bitboardId]
+        # bitboardId = self.enforceStringTypeId(bitboardId)
         if not self.isInBound(fromI, fromJ) or not self.isInBound(toI, toJ):
             return
+        bitboard = self.bitboardManager[bitboardId]
         if self.isPieceSet(bitboardId, fromI, fromJ):
             fromPosition = (fromI * bitboard.sizeJ) + fromJ
             toPosition = (toI * bitboard.sizeJ) + toJ
@@ -130,7 +129,7 @@ class BitboardManager:
                     and opponentBitboardId in opponentBitboardIdList
                     and self.isPieceSet(opponentBitboardId, toI, toJ)
             ):
-                self.movePiece(bitboardId, fromI, fromJ, toI, toJ)
+                self.movePieceOptimized(bitboardId, fromI, fromJ, toI, toJ)
                 self.deletePiece(opponentBitboardId, toI, toJ)
 
     # classical game, piece cannot capture same piece type
@@ -173,7 +172,6 @@ class BitboardManager:
             mask = (mask * 2) + 1
         mask <<= i * self.sizeJ
         self[bitboardId].data = self[bitboardId].data | mask
-
 
     def deleteNeighbors(self, bitboardId, i, j):
         self.deletePiece(bitboardId, i + 1, j)
@@ -243,13 +241,60 @@ class BitboardManager:
         return allPossibleMoves
 
 
-if __name__ == '__main__':
+def test():
     bm = BitboardManager()
-    bm.buildBitboard('1', 4, 3)
-    bm.setPiece('1', 3, 1)
-    bm.showBitboard('1')
-    bluePawnMovements = {'1': [(-1, 0), (-1, 1), (-1, -1)]}
-    print(bm.generateAllPossibleMoves(bluePawnMovements, {'1': (3, 1)}))
+    bm.buildBitboard('1', 4, 4)
+    bm.setPiece('1', 2, 1)
+    loop = 100000
+    totalTimeBitboard = 0
+
+    for _ in range(loop):
+        start = time.time()
+        # bm.movePieceOptimized('1', 2, 1, 3, 1)
+        bm['1'].data ^= ((1 << ((2 * 4) + 1)) | (1 << ((3 * 4) + 1)))
+
+        end = time.time()
+        bm.movePieceOptimized('1', 3, 1, 2, 1)
+        totalTimeBitboard += end - start
+
+    board = [['0'] * 4 for _ in range(4)]
+    board[2][1] = '1'
+    totalTimeArray = 0
+    #testing simplest/optimal case for array allocation
+    #delete old place, and set new place
+    for _ in range(loop):
+        start = time.time()
+        board[2][1] = '0'
+        board[3][1] = '1'
+        end = time.time()
+        board[2][1] = '1'
+        board[3][1] = '0'
+        totalTimeArray += end - start
+
+    print("total time with bitboard: ", totalTimeBitboard)
+    print("total time with array: ", totalTimeArray)
+
+
+
+if __name__ == '__main__':
+    # bm = BitboardManager()
+    # bm.buildBitboard('1', 4, 3)
+    # bm.setPiece('1', 3, 1)
+    # bm.showBitboard('1')
+    # bluePawnMovements = {'1': [(-1, 0), (-1, 1), (-1, -1)]}
+    # print(bm.generateAllPossibleMoves(bluePawnMovements, {'1': (3, 1)}))
+
+    def movePieceOptimized(self, bitboardId, fromI, fromJ, toI, toJ):
+        # bitboardId = self.enforceStringTypeId(bitboardId)
+        if not self.isInBound(fromI, fromJ) or not self.isInBound(toI, toJ):
+            return
+        bitboard = self.bitboardManager[bitboardId]
+        if self.isPieceSet(bitboardId, fromI, fromJ):
+            fromPosition = (fromI * bitboard.sizeJ) + fromJ
+            toPosition = (toI * bitboard.sizeJ) + toJ
+            bitboard.data ^= ((1 << fromPosition) | (1 << toPosition))
+
+    test()
 
 # if __name__ == '__main__':
 #     bm = BitboardManager()

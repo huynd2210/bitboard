@@ -14,8 +14,8 @@ class Game(TwoPlayerGame):
         self.sizeI = sizeI
         self.sizeJ = sizeJ
         self.hasLost = None
-        self.firstPlayerPieceCoords = []
-        self.secondPlayerPieceCoords = []
+        self.winner = ''
+        self.pieceCoord = {}
         self._initBoard(sizeI, sizeJ)
 
     def possible_moves(self):
@@ -31,17 +31,21 @@ class Game(TwoPlayerGame):
 
     def is_over(self):
         if self.bm.isRowAnyPieceSet('1', 0):
-            return True, '1'
+            self.winner = '1'
+            return True
         if self.bm.isRowAnyPieceSet('2', self.bm.sizeI - 1):
-            return True, '2'
+            self.winner = '2'
+            return True
         if self.bm.isEmpty('1'):
-            return True, '2'
+            self.winner = '2'
+            return True
         if self.bm.isEmpty('2'):
-            return True, '1'
-        return False, '0'
+            self.winner = '1'
+            return True
+        return False
 
     def lose(self):
-        self.hasLost = self.opponent_index == int(self.is_over()[1])
+        self.hasLost = self.opponent_index == int(self.is_over())
 
     def _initBoard(self, sizeI, sizeJ):
         self.bm.buildBitboard('1', sizeI, sizeJ)
@@ -50,21 +54,21 @@ class Game(TwoPlayerGame):
         self.bm.setAllBitsAtRow('2', 1)
         self.bm.setAllBitsAtRow('1', sizeI - 2)
         self.bm.setAllBitsAtRow('1', sizeI - 1)
-        for i in range(2):
-            for j in range(5):
-                self.secondPlayerPieceCoords.append((i, j))
-
-        for i in range(sizeI - 2, sizeI):
-            for j in range(5):
-                self.firstPlayerPieceCoords.append((i, j))
+        # for i in range(2):
+        #     for j in range(5):
+        #         self.secondPlayerPieceCoords.append((i, j))
+        #
+        # for i in range(sizeI - 2, sizeI):
+        #     for j in range(5):
+        #         self.firstPlayerPieceCoords.append((i, j))
 
     def getAllPossibleMovesFor1(self):
         bluePawnMovements = {'1': [(-1, 0), (-1, 1), (-1, -1)]}
-        return self.bm.generateAllPossibleMoves(bluePawnMovements, self.firstPlayerPieceCoords)
+        return self.bm.generateAllPossibleMoves(bluePawnMovements, self.pieceCoord)
 
     def getAllPossibleMovesFor2(self):
         redPawnMovements = {'2': [(1, 0), (1, 1), (1, -1)]}
-        return self.bm.generateAllPossibleMoves(redPawnMovements, self.secondPlayerPieceCoords)
+        return self.bm.generateAllPossibleMoves(redPawnMovements, self.pieceCoord)
 
     def getAllPossibleMoves(self, isFirstPlayerTurn):
         possibleMoves = self.getAllPossibleMovesFor1() if isFirstPlayerTurn else self.getAllPossibleMovesFor2()
