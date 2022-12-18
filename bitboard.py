@@ -1,6 +1,7 @@
 import time
 from functools import lru_cache
 
+
 class Bitboard:
     def __init__(self, data, sizeI, sizeJ):
         self.data = data
@@ -145,7 +146,7 @@ class BitboardManager:
             # basically self.isPieceSet but without checks
             originPiecePosition = (fromI * bitboard.sizeJ) + fromJ
             destinationPiecePosition = (toI * bitboard.sizeJ) + toJ \
-                # if origin is not set then false
+            # if origin is not set then false
             if ((bitboard.data >> originPiecePosition) & 1) == 0:
                 return False
 
@@ -232,12 +233,11 @@ class BitboardManager:
     # pieceMovements is key value: bitboardId:[(offsetI, offsetJ]
     # pieceLocaions is key value: bitboardId:[(i,j)]
     # returns: key value: bitboardId:[moves] (see generateMoveForAPiece)
-    def generateAllPossibleMoves(self, pieceMovements, pieceLocations):
+    def generateAllPossibleMoves(self, bitboardId, pieceMovements, pieceLocations):
         allPossibleMoves = {}
-        for bitboardId in pieceMovements.keys():
-            movementOffsets = pieceMovements[bitboardId]
-            fromI, fromJ = pieceLocations[bitboardId]
-            allPossibleMoves[bitboardId] = self.generateMoveForAPiece(bitboardId, fromI, fromJ, movementOffsets)
+        movementOffsets = pieceMovements[bitboardId]
+        fromI, fromJ = pieceLocations[bitboardId]
+        allPossibleMoves[bitboardId] = self.generateMoveForAPiece(bitboardId, fromI, fromJ, movementOffsets)
         return allPossibleMoves
 
 
@@ -260,8 +260,8 @@ def test():
     board = [['0'] * 4 for _ in range(4)]
     board[2][1] = '1'
     totalTimeArray = 0
-    #testing simplest/optimal case for array allocation
-    #delete old place, and set new place
+    # testing simplest/optimal case for array allocation
+    # delete old place, and set new place
     for _ in range(loop):
         start = time.time()
         board[2][1] = '0'
@@ -273,7 +273,6 @@ def test():
 
     print("total time with bitboard: ", totalTimeBitboard)
     print("total time with array: ", totalTimeArray)
-
 
 
 if __name__ == '__main__':
@@ -293,6 +292,7 @@ if __name__ == '__main__':
             fromPosition = (fromI * bitboard.sizeJ) + fromJ
             toPosition = (toI * bitboard.sizeJ) + toJ
             bitboard.data ^= ((1 << fromPosition) | (1 << toPosition))
+
 
     test()
 

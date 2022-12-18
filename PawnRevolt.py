@@ -2,6 +2,7 @@ from easyAI import AI_Player, TwoPlayerGame, Human_Player
 
 from bitboard import BitboardManager
 
+
 class Game(TwoPlayerGame):
     def __init__(self, players=None, sizeI=7, sizeJ=5):
         self.bm = BitboardManager()
@@ -54,21 +55,29 @@ class Game(TwoPlayerGame):
         self.bm.setAllBitsAtRow('2', 1)
         self.bm.setAllBitsAtRow('1', sizeI - 2)
         self.bm.setAllBitsAtRow('1', sizeI - 1)
-        # for i in range(2):
-        #     for j in range(5):
-        #         self.secondPlayerPieceCoords.append((i, j))
-        #
-        # for i in range(sizeI - 2, sizeI):
-        #     for j in range(5):
-        #         self.firstPlayerPieceCoords.append((i, j))
+        pieceFor2 = []
+
+        for i in range(2):
+            for j in range(sizeJ):
+                pieceFor2.append((i, j))
+
+        self.pieceCoord['2'] = pieceFor2
+
+
+        pieceFor1 = []
+        for i in range(sizeI - 2, sizeI):
+            for j in range(sizeJ):
+                pieceFor1.append((i, j))
+
+        self.pieceCoord['1'] = pieceFor1
 
     def getAllPossibleMovesFor1(self):
         bluePawnMovements = {'1': [(-1, 0), (-1, 1), (-1, -1)]}
-        return self.bm.generateAllPossibleMoves(bluePawnMovements, self.pieceCoord)
+        return self.bm.generateAllPossibleMoves('1', bluePawnMovements, self.pieceCoord)
 
     def getAllPossibleMovesFor2(self):
         redPawnMovements = {'2': [(1, 0), (1, 1), (1, -1)]}
-        return self.bm.generateAllPossibleMoves(redPawnMovements, self.pieceCoord)
+        return self.bm.generateAllPossibleMoves('2', redPawnMovements, self.pieceCoord)
 
     def getAllPossibleMoves(self, isFirstPlayerTurn):
         possibleMoves = self.getAllPossibleMovesFor1() if isFirstPlayerTurn else self.getAllPossibleMovesFor2()
