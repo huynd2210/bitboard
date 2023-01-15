@@ -2,6 +2,7 @@ import time
 
 import pytest
 
+import PawnRevolt
 from bitboard import BitboardManager
 from timeit import timeit
 
@@ -72,5 +73,6 @@ def testMovePieceAgainstOptimizedMovePiece():
 
 
 if __name__ == '__main__':
-
+    game = PawnRevolt.Game
+    print(game.getAllPossibleMoves(True))
 

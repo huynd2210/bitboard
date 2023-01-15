@@ -36,7 +36,12 @@ class BitboardManager:
                 self.setPiece(piece, i, j)
 
     def translateBitboardsToMailbox(self):
-        board = [['.' * self.sizeJ] * self.sizeI]
+        board = []
+
+        for _ in range(self.sizeI):
+            row = ['.' for _ in range(self.sizeJ)]
+            board.append(row)
+
         for bitboardId, bitboard in self.bitboardManager.items():
             for i in range(bitboard.sizeI):
                 for j in range(bitboard.sizeJ):
@@ -146,7 +151,7 @@ class BitboardManager:
             # basically self.isPieceSet but without checks
             originPiecePosition = (fromI * bitboard.sizeJ) + fromJ
             destinationPiecePosition = (toI * bitboard.sizeJ) + toJ \
-            # if origin is not set then false
+                # if origin is not set then false
             if ((bitboard.data >> originPiecePosition) & 1) == 0:
                 return False
 
@@ -231,13 +236,19 @@ class BitboardManager:
         return possibleMoves
 
     # pieceMovements is key value: bitboardId:[(offsetI, offsetJ]
-    # pieceLocaions is key value: bitboardId:[(i,j)]
+    # pieceLocations is key value: bitboardId:[(i,j)]
     # returns: key value: bitboardId:[moves] (see generateMoveForAPiece)
     def generateAllPossibleMoves(self, bitboardId, pieceMovements, pieceLocations):
         allPossibleMoves = {}
         movementOffsets = pieceMovements[bitboardId]
-        fromI, fromJ = pieceLocations[bitboardId]
-        allPossibleMoves[bitboardId] = self.generateMoveForAPiece(bitboardId, fromI, fromJ, movementOffsets)
+        # fromI, fromJ = pieceLocations[bitboardId]
+
+        for pieceLocation in pieceLocations[bitboardId]:
+            fromI, fromJ = pieceLocation
+            if bitboardId not in allPossibleMoves:
+                allPossibleMoves[bitboardId] = self.generateMoveForAPiece(bitboardId, fromI, fromJ, movementOffsets)
+            else:
+                allPossibleMoves[bitboardId] += self.generateMoveForAPiece(bitboardId, fromI, fromJ, movementOffsets)
         return allPossibleMoves
 
 

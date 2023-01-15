@@ -3,7 +3,7 @@ from easyAI import AI_Player, TwoPlayerGame, Human_Player
 from bitboard import BitboardManager
 
 
-class Game(TwoPlayerGame):
+class Game():
     def __init__(self, players=None, sizeI=7, sizeJ=5):
         self.bm = BitboardManager()
         if players is None:
@@ -84,7 +84,18 @@ class Game(TwoPlayerGame):
         return list(map(lambda move: "ABCDEFGHIJ"[move[1]] + str(move[2]) + " " + "ABCDEFGHIJ"[move[3]] + str(move[4]),
                         possibleMoves))
 
+    def getAllNextStates(self, isFirstPlayerTurn):
+        possibleMoves = self.getAllPossibleMoves(isFirstPlayerTurn)
+
+
+    def printBitboards(self):
+        self.bm.showAllBitboard()
+
+    def printBoard(self):
+        print(self.bm.translateBitboardsToMailbox())
 
 if __name__ == '__main__':
-    game = Game([Human_Player(), Human_Player()])
-    game.play()
+    game = Game()
+    game.printBoard()
+    # print(game.getAllPossibleMoves(True))
+
