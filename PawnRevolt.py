@@ -23,7 +23,7 @@ class Game():
         return self.getAllPossibleMoves(self.current_player == 1)
 
     def make_move(self, move):
-        move = tuple(map(lambda s: ("ABCDEFGHIJ".index(s[0]), int(s[1:])), move.split(" ")))
+        # move = tuple(map(lambda s: ("ABCDEFGHIJ".index(s[0]), int(s[1:])), move.split(" ")))
         bitboardId, fromI, fromJ, toI, toJ = move
         self.bm.moveWithCapture(bitboardId, fromI, fromJ, toI, toJ, ['2'])
 
@@ -81,8 +81,11 @@ class Game():
 
     def getAllPossibleMoves(self, isFirstPlayerTurn):
         possibleMoves = self.getAllPossibleMovesFor1() if isFirstPlayerTurn else self.getAllPossibleMovesFor2()
-        return list(map(lambda move: "ABCDEFGHIJ"[move[1]] + str(move[2]) + " " + "ABCDEFGHIJ"[move[3]] + str(move[4]),
-                        possibleMoves))
+        possibleMoves = list(possibleMoves.values())
+
+        # return list(map(lambda move: "ABCDEFGHIJ"[move[1]] + str(move[2]) + " " + "ABCDEFGHIJ"[move[3]] + str(move[4]),
+        #                 possibleMoves))
+        return possibleMoves[0]
 
     def getAllNextStates(self, isFirstPlayerTurn):
         possibleMoves = self.getAllPossibleMoves(isFirstPlayerTurn)
@@ -91,11 +94,19 @@ class Game():
     def printBitboards(self):
         self.bm.showAllBitboard()
 
+    def printListAsGrid(self, input):
+        for i in input:
+            print(i)
+
     def printBoard(self):
-        print(self.bm.translateBitboardsToMailbox())
+        self.printListAsGrid(self.bm.translateBitboardsToMailbox())
 
 if __name__ == '__main__':
     game = Game()
     game.printBoard()
-    # print(game.getAllPossibleMoves(True))
+    print("------------")
+    possibleMoves = game.getAllPossibleMoves(True)
+    game.make_move(possibleMoves[0])
+    game.printBoard()
+
 

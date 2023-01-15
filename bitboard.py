@@ -108,10 +108,10 @@ class BitboardManager:
         bitboard.data = bitboard.data & ~(1 << piecePosition)
 
     # can be optimized using bit shifts
-    def movePiece(self, bitboardId, fromI, fromJ, toI, toJ):
-        if self.isPieceSet(bitboardId, fromI, fromJ):
-            self.deletePiece(bitboardId, fromI, fromJ)
-            self.setPiece(bitboardId, toI, toJ)
+    # def movePiece(self, bitboardId, fromI, fromJ, toI, toJ):
+    #     if self.isPieceSet(bitboardId, fromI, fromJ):
+    #         self.deletePiece(bitboardId, fromI, fromJ)
+    #         self.setPiece(bitboardId, toI, toJ)
 
     def move(self, move):
         bitboardId, fromI, fromJ, toI, toJ = move
@@ -127,8 +127,19 @@ class BitboardManager:
             toPosition = (toI * bitboard.sizeJ) + toJ
             bitboard.data ^= ((1 << fromPosition) | (1 << toPosition))
 
-    # capture a piece, requires destination to have enemy piece
     def moveWithCapture(self, bitboardId, fromI, fromJ, toI, toJ, opponentBitboardIdList):
+        for opponentBitboardId, data in self.bitboardManager.items():
+            if (
+                    bitboardId != opponentBitboardId
+                    and opponentBitboardId in opponentBitboardIdList
+            ):
+                self.movePieceOptimized(bitboardId, fromI, fromJ, toI, toJ)
+                if self.isPieceSet(opponentBitboardId, toI, toJ):
+                    self.deletePiece(opponentBitboardId, toI, toJ)
+
+
+    # capture a piece, requires destination to have enemy piece
+    def moveAndCapture(self, bitboardId, fromI, fromJ, toI, toJ, opponentBitboardIdList):
         for opponentBitboardId, data in self.bitboardManager.items():
             if (
                     bitboardId != opponentBitboardId
@@ -139,7 +150,7 @@ class BitboardManager:
                 self.deletePiece(opponentBitboardId, toI, toJ)
 
     # classical game, piece cannot capture same piece type
-    def isLegalMove(self, fromI, fromJ, toI, toJ):
+    def isLegalMove(self, fromI, fromJ, toI, toJ, originBitboardId):
         if fromI == toI and fromJ == toJ:
             return False
 
@@ -151,8 +162,8 @@ class BitboardManager:
             # basically self.isPieceSet but without checks
             originPiecePosition = (fromI * bitboard.sizeJ) + fromJ
             destinationPiecePosition = (toI * bitboard.sizeJ) + toJ \
-                # if origin is not set then false
-            if ((bitboard.data >> originPiecePosition) & 1) == 0:
+            # if origin is not set then false
+            if ((bitboard.data >> originPiecePosition) & 1) == 0 and bitboardId == originBitboardId:
                 return False
 
             # if origin and destination is same then move is not legal
@@ -231,7 +242,7 @@ class BitboardManager:
         possibleMoves = []
         for offsets in movements:
             offsetI, offsetJ = offsets
-            if self.isLegalMove(fromI, fromJ, fromI + offsetI, fromJ + offsetJ):
+            if self.isLegalMove(fromI, fromJ, fromI + offsetI, fromJ + offsetJ, bitboardId):
                 possibleMoves.append((bitboardId, fromI, fromJ, fromI + offsetI, fromJ + offsetJ))
         return possibleMoves
 
