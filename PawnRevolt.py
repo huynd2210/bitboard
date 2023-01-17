@@ -3,21 +3,18 @@ from easyAI import AI_Player, TwoPlayerGame, Human_Player
 from bitboard import BitboardManager
 
 
-class Game():
-    def __init__(self, players=None, sizeI=7, sizeJ=5):
+class Game:
+    def __init__(self, sizeI=7, sizeJ=5):
         self.bm = BitboardManager()
-        if players is None:
-            self.players = [AI_Player(None), AI_Player(None)]
-        else:
-            self.players = players
-
         self.current_player = 1
         self.sizeI = sizeI
         self.sizeJ = sizeJ
-        self.hasLost = None
+        self.isEnd = None
         self.winner = ''
         self.pieceCoord = {}
         self._initBoard(sizeI, sizeJ)
+
+
 
     def possible_moves(self):
         return self.getAllPossibleMoves(self.current_player == 1)
@@ -45,8 +42,8 @@ class Game():
             return True
         return False
 
-    def lose(self):
-        self.hasLost = self.opponent_index == int(self.is_over())
+    # def lose(self):
+    #     self.hasLost = self.opponent_index == int(self.is_over())
 
     def _initBoard(self, sizeI, sizeJ):
         self.bm.buildBitboard('1', sizeI, sizeJ)
@@ -89,6 +86,8 @@ class Game():
 
     def getAllNextStates(self, isFirstPlayerTurn):
         possibleMoves = self.getAllPossibleMoves(isFirstPlayerTurn)
+        nextStates = []
+        for move in possibleMoves:
 
 
     def printBitboards(self):
@@ -100,6 +99,9 @@ class Game():
 
     def printBoard(self):
         self.printListAsGrid(self.bm.translateBitboardsToMailbox())
+
+    def getGameState(self):
+        return self.bm['1'], self.bm['2'], self.current_player, self.isEnd, self.winner
 
 if __name__ == '__main__':
     game = Game()
