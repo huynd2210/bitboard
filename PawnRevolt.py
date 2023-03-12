@@ -1,28 +1,25 @@
-from easyAI import AI_Player, TwoPlayerGame, Human_Player
-
 from bitboard import BitboardManager
-
+from pairing_functions import szudzik
 
 class Game:
     def __init__(self, sizeI=7, sizeJ=5):
         self.bm = BitboardManager()
-        self.current_player = 1
+        self.current_player = '1'
         self.sizeI = sizeI
         self.sizeJ = sizeJ
         self.isEnd = None
         self.winner = ''
         self.pieceCoord = {}
         self._initBoard(sizeI, sizeJ)
-
-
-
-    def possible_moves(self):
-        return self.getAllPossibleMoves(self.current_player == 1)
+        self.parentPlayer1Board = None
+        self.parentPlayer2Board = None
 
     def make_move(self, move):
         # move = tuple(map(lambda s: ("ABCDEFGHIJ".index(s[0]), int(s[1:])), move.split(" ")))
         bitboardId, fromI, fromJ, toI, toJ = move
-        self.bm.moveWithCapture(bitboardId, fromI, fromJ, toI, toJ, ['2'])
+        opponent = '1' if self.current_player == '2' else '2'
+        self.bm.moveWithCapture(bitboardId, fromI, fromJ, toI, toJ, [opponent])
+        self.current_player = '1' if self.current_player == '2' else '2'
 
     def show(self):
         self.bm.showAllBitboard()
@@ -60,7 +57,6 @@ class Game:
 
         self.pieceCoord['2'] = pieceFor2
 
-
         pieceFor1 = []
         for i in range(sizeI - 2, sizeI):
             for j in range(sizeJ):
@@ -87,8 +83,24 @@ class Game:
     def getAllNextStates(self, isFirstPlayerTurn):
         possibleMoves = self.getAllPossibleMoves(isFirstPlayerTurn)
         nextStates = []
+        currentState = self.getGameState()
         for move in possibleMoves:
+            self.make_move(move)
+            self.isEnd = self.is_over()
+            # currentState[0] is player '1' bitboard, currentState[1] is player '2' bitboard and hence the parent value
+            self.parentPlayer1Board = currentState[0]
+            self.parentPlayer2Board = currentState[1]
+            nextStates.append(self.getGameState())
+            self.loadState(currentState)
+        return nextStates
 
+
+    def loadFromQueue(self, queue, processBatchSize):
+        iteration = len(queue) if len(queue) < processBatchSize else processBatchSize
+        children = []
+        for i in range(iteration):
+            children.append(queue.pop())
+        return children
 
     def printBitboards(self):
         self.bm.showAllBitboard()
@@ -101,14 +113,56 @@ class Game:
         self.printListAsGrid(self.bm.translateBitboardsToMailbox())
 
     def getGameState(self):
-        return self.bm['1'], self.bm['2'], self.current_player, self.isEnd, self.winner
+        return self.bm.bitboardManager['1'].data, self.bm['2'].data, self.current_player, self.isEnd, self.winner, self.parentPlayer1Board, self.parentPlayer2Board
+
+    def loadState(self, state):
+        firstPlayerBitboard, secondPlayerBitboard, currentPlayer, isEnd, winner, parentPlayer1Board, parentPlayer2Board = state
+        self.bm.bitboardManager['1'].data = firstPlayerBitboard
+        self.bm.bitboardManager['2'].data = secondPlayerBitboard
+        self.current_player = currentPlayer
+        self.isEnd = isEnd
+        self.winner = winner
+        self.parentPlayer1Board = parentPlayer1Board
+        self.parentPlayer2Board = parentPlayer2Board
+
+    def solveQueue(self, queue, buffer, transpositionTable):
+        for state in queue:
+            game.loadState(state)
+            stateHash = szudzik.pair(self.bm.bitboardManager['1'].data, self.bm.bitboardManager['2'])
+            if stateHash not in transpositionTable:
+                children = self.getAllNextStates(self.current_player == '1')
+                buffer.append()
+
+
+    # def solve(self):
+    #     isFirstPlayerTurn = True
+    #     children = self.getAllNextStates(isFirstPlayerTurn)
+    #
+    #     queue = []
+    #     for child in children:
+    #         self.loadState(child)
+    #         queue.append(self.getAllNextStates(not isFirstPlayerTurn))
+    #         # saveChild
+    #     self.saveBatch(queue, batchSize=3000)
+    #
+    # def saveBatch(self, queue, batchSize):
+    #     if len(queue) >= batchSize:
+    #         # do save
+    #         pass
+
 
 if __name__ == '__main__':
     game = Game()
-    game.printBoard()
-    print("------------")
-    possibleMoves = game.getAllPossibleMoves(True)
-    game.make_move(possibleMoves[0])
-    game.printBoard()
+    # game.printBoard()
+    # print("------------")
+    # possibleMoves = game.getAllPossibleMoves(True)
+    # game.make_move(possibleMoves[0])
+    # game.printBoard()
+    # print(game.getGameState())
 
-
+    nextStates = game.getAllNextStates(True)
+    for state in nextStates:
+        game.loadState(state)
+        game.printBoard()
+        print("--------")
+        print(game.getGameState())

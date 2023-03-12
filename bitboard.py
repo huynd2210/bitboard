@@ -305,17 +305,6 @@ if __name__ == '__main__':
     # bluePawnMovements = {'1': [(-1, 0), (-1, 1), (-1, -1)]}
     # print(bm.generateAllPossibleMoves(bluePawnMovements, {'1': (3, 1)}))
 
-    def movePieceOptimized(self, bitboardId, fromI, fromJ, toI, toJ):
-        # bitboardId = self.enforceStringTypeId(bitboardId)
-        if not self.isInBound(fromI, fromJ) or not self.isInBound(toI, toJ):
-            return
-        bitboard = self.bitboardManager[bitboardId]
-        if self.isPieceSet(bitboardId, fromI, fromJ):
-            fromPosition = (fromI * bitboard.sizeJ) + fromJ
-            toPosition = (toI * bitboard.sizeJ) + toJ
-            bitboard.data ^= ((1 << fromPosition) | (1 << toPosition))
-
-
     test()
 
 # if __name__ == '__main__':
