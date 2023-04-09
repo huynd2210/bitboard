@@ -1,3 +1,5 @@
+from typing import List
+
 from bitboard import BitboardManager
 from pairing_functions import szudzik
 
@@ -83,14 +85,15 @@ class Game:
     def getAllNextStates(self, isFirstPlayerTurn):
         possibleMoves = self.getAllPossibleMoves(isFirstPlayerTurn)
         nextStates = []
-        currentState = self.getGameState()
+        currentState = self.saveGameState()
         for move in possibleMoves:
             self.make_move(move)
             self.isEnd = self.is_over()
             # currentState[0] is player '1' bitboard, currentState[1] is player '2' bitboard and hence the parent value
             self.parentPlayer1Board = currentState[0]
             self.parentPlayer2Board = currentState[1]
-            nextStates.append(self.getGameState())
+            nextStates.append(self.saveGameState())
+            # reload currentState
             self.loadState(currentState)
         return nextStates
 
@@ -112,7 +115,7 @@ class Game:
     def printBoard(self):
         self.printListAsGrid(self.bm.translateBitboardsToMailbox())
 
-    def getGameState(self):
+    def saveGameState(self):
         return self.bm.bitboardManager['1'].data, self.bm['2'].data, self.current_player, self.isEnd, self.winner, self.parentPlayer1Board, self.parentPlayer2Board
 
     def loadState(self, state):
@@ -125,14 +128,15 @@ class Game:
         self.parentPlayer1Board = parentPlayer1Board
         self.parentPlayer2Board = parentPlayer2Board
 
-    def solveQueue(self, queue, buffer, transpositionTable):
+    def solveQueue(self, queue: List, buffer: List, transpositionTable: set):
         for state in queue:
             game.loadState(state)
             stateHash = szudzik.pair(self.bm.bitboardManager['1'].data, self.bm.bitboardManager['2'])
             if stateHash not in transpositionTable:
                 children = self.getAllNextStates(self.current_player == '1')
-                buffer.append()
-
+                buffer.append(children)
+                transpositionTable.add(stateHash)
+        return buffer
 
     # def solve(self):
     #     isFirstPlayerTurn = True
@@ -165,4 +169,4 @@ if __name__ == '__main__':
         game.loadState(state)
         game.printBoard()
         print("--------")
-        print(game.getGameState())
+        print(game.saveGameState())
