@@ -3,6 +3,7 @@ from typing import List
 from bitboard import BitboardManager
 from pairing_functions import szudzik
 
+
 class Game:
     def __init__(self, sizeI=7, sizeJ=5):
         self.bm = BitboardManager()
@@ -97,7 +98,6 @@ class Game:
             self.loadState(currentState)
         return nextStates
 
-
     def loadFromQueue(self, queue, processBatchSize):
         iteration = len(queue) if len(queue) < processBatchSize else processBatchSize
         children = []
@@ -116,7 +116,8 @@ class Game:
         self.printListAsGrid(self.bm.translateBitboardsToMailbox())
 
     def saveGameState(self):
-        return self.bm.bitboardManager['1'].data, self.bm['2'].data, self.current_player, self.isEnd, self.winner, self.parentPlayer1Board, self.parentPlayer2Board
+        return self.bm.bitboardManager['1'].data, self.bm[
+            '2'].data, self.current_player, self.isEnd, self.winner, self.parentPlayer1Board, self.parentPlayer2Board
 
     def loadState(self, state):
         firstPlayerBitboard, secondPlayerBitboard, currentPlayer, isEnd, winner, parentPlayer1Board, parentPlayer2Board = state
@@ -132,27 +133,50 @@ class Game:
         for state in queue:
             game.loadState(state)
             stateHash = szudzik.pair(self.bm.bitboardManager['1'].data, self.bm.bitboardManager['2'])
+            # if hash is in table then we checked it
+            # if hash is not in table, then we expand the children of the states and put into buffer
+            # table will be persisted in db
+
             if stateHash not in transpositionTable:
                 children = self.getAllNextStates(self.current_player == '1')
                 buffer.append(children)
                 transpositionTable.add(stateHash)
         return buffer
 
-    # def solve(self):
-    #     isFirstPlayerTurn = True
-    #     children = self.getAllNextStates(isFirstPlayerTurn)
-    #
-    #     queue = []
-    #     for child in children:
-    #         self.loadState(child)
-    #         queue.append(self.getAllNextStates(not isFirstPlayerTurn))
-    #         # saveChild
-    #     self.saveBatch(queue, batchSize=3000)
-    #
-    # def saveBatch(self, queue, batchSize):
-    #     if len(queue) >= batchSize:
-    #         # do save
-    #         pass
+    # There are queue and buffer, the problem is due to bfs, the number of children processed is less than the number of children generated.
+    # therefore we will run out of RAM. The each "round" some children in buffer will be transfered to queue. Then queue will be processed.
+    # Children generated from solveQueue is added to buffer (the processed children is saved in table/DB).
+    # Should the buffersize > some threshold, then the number of children equal to some number < threshold is saved into DB.
+    # When buffer ran out, children from buffer table in DB is loaded out.
+    # Repeat until buffer in RAM and in DB is empty which should indicate that the entire tree is searched.
+    # Afterwards, we need to backpropagate the result (as well as the next best move) according to minmax algo to the root.
+    def solve(self):
+        isFirstPlayerTurn = True
+        children = self.getAllNextStates(isFirstPlayerTurn)
+
+        queue = []
+        for child in children:
+            self.loadState(child)
+            queue.append(self.getAllNextStates(not isFirstPlayerTurn))
+
+
+
+
+# def solve(self):
+#     isFirstPlayerTurn = True
+#     children = self.getAllNextStates(isFirstPlayerTurn)
+#
+#     queue = []
+#     for child in children:
+#         self.loadState(child)
+#         queue.append(self.getAllNextStates(not isFirstPlayerTurn))
+#         # saveChild
+#     self.saveBatch(queue, batchSize=3000)
+#
+# def saveBatch(self, queue, batchSize):
+#     if len(queue) >= batchSize:
+#         # do save
+#         pass
 
 
 if __name__ == '__main__':
