@@ -105,15 +105,7 @@ class Game:
             children.append(queue.pop())
         return children
 
-    def printBitboards(self):
-        self.bm.showAllBitboard()
 
-    def printListAsGrid(self, input):
-        for i in input:
-            print(i)
-
-    def printBoard(self):
-        self.printListAsGrid(self.bm.translateBitboardsToMailbox())
 
     def saveGameState(self):
         return self.bm.bitboardManager['1'].data, self.bm[
@@ -158,8 +150,6 @@ class Game:
         for child in children:
             self.loadState(child)
             queue.append(self.getAllNextStates(not isFirstPlayerTurn))
-
-
 
 
 # def solve(self):

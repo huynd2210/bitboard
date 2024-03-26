@@ -190,6 +190,51 @@ class BitboardManager:
         mask <<= i * self.sizeJ
         self[bitboardId].data = self[bitboardId].data | mask
 
+    def unsetAllBitsAtRow(self, bitboardId, i):
+        bitboardId = self.enforceStringTypeId(bitboardId)
+        mask = 1
+        # Build mask with all bits set to 1
+        for _ in range(self.sizeJ - 1):
+            mask = (mask * 2) + 1
+
+        # Shift the mask to the position of the specified row
+        mask <<= i * self.sizeJ
+
+        # Invert the mask to unset the bits in the specified row
+        mask = ~mask
+
+        # Perform bitwise AND operation to unset the bits
+        self[bitboardId].data = self[bitboardId].data & mask
+
+    def setAllBitsAtColumn(self, bitboardId, j):
+        bitboardId = self.enforceStringTypeId(bitboardId)
+        mask = 1
+        # Build mask with only the bit in the specified column set to 1
+        for _ in range(self.sizeI - 1):
+            mask = (mask << self.sizeJ) | 1
+
+        # Shift the mask to the position of the specified column
+        mask <<= j
+
+        # Perform bitwise OR operation to set the bits
+        self[bitboardId].data = self[bitboardId].data | mask
+
+    def unsetAllBitsAtColumn(self, bitboardId, j):
+        bitboardId = self.enforceStringTypeId(bitboardId)
+        mask = 1
+        # Build mask with only the bit in the specified column set to 0
+        for _ in range(self.sizeI - 1):
+            mask = (mask << self.sizeJ) | 1
+
+        # Invert the mask to unset the bits in the specified column
+        mask = ~mask
+
+        # Shift the mask to the position of the specified column
+        mask <<= j
+
+        # Perform bitwise AND operation to unset the bits
+        self[bitboardId].data = self[bitboardId].data & mask
+
     def deleteNeighbors(self, bitboardId, i, j):
         self.deletePiece(bitboardId, i + 1, j)
         self.deletePiece(bitboardId, i - 1, j)
