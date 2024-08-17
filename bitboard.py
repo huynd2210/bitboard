@@ -1,9 +1,10 @@
 import time
-from functools import lru_cache
+from functools import lru_cache, reduce
+import random
 
 
 class Bitboard:
-    def __init__(self, data, sizeI, sizeJ):
+    def __init__(self, data: int, sizeI, sizeJ):
         self.data = data
         self.sizeI = sizeI
         self.sizeJ = sizeJ
@@ -18,6 +19,8 @@ class BitboardManager:
         self.bitboardManager = {}
         self.sizeI = 0
         self.sizeJ = 0
+        self.zobristTable = self.generateZobristTable()
+
 
     def __getitem__(self, item):
         return self.bitboardManager[item]
@@ -138,8 +141,8 @@ class BitboardManager:
                     self.deletePiece(opponentBitboardId, toI, toJ)
 
 
-    # capture a piece, requires destination to have enemy piece
-    def moveAndCapture(self, bitboardId, fromI, fromJ, toI, toJ, opponentBitboardIdList):
+    # capture a piece, only if destination to have enemy piece
+    def moveAndCaptureIfPossible(self, bitboardId, fromI, fromJ, toI, toJ, opponentBitboardIdList):
         for opponentBitboardId, data in self.bitboardManager.items():
             if (
                     bitboardId != opponentBitboardId
@@ -307,42 +310,50 @@ class BitboardManager:
                 allPossibleMoves[bitboardId] += self.generateMoveForAPiece(bitboardId, fromI, fromJ, movementOffsets)
         return allPossibleMoves
 
+    def getIndexOfSetBits(self, bits):
+        return [i for i in range(bits.bit_length()) if bits & (1 << i)]
 
-def test():
-    bm = BitboardManager()
-    bm.buildBitboard('1', 4, 4)
-    bm.setPiece('1', 2, 1)
-    loop = 100000
-    totalTimeBitboard = 0
+    def _index1dTo2d(self, index):
+        row = index // self.sizeJ
+        col = index % self.sizeJ
+        if row > self.sizeI:
+            raise Exception('index out of bounds')
 
-    for _ in range(loop):
-        start = time.time()
-        # bm.movePieceOptimized('1', 2, 1, 3, 1)
-        bm['1'].data ^= ((1 << ((2 * 4) + 1)) | (1 << ((3 * 4) + 1)))
+        return row, col
 
-        end = time.time()
-        bm.movePieceOptimized('1', 3, 1, 2, 1)
-        totalTimeBitboard += end - start
+    def _generateZobristTableForAPiece(self, bitboardId, seed, bitsize=64):
+        return {
+            (bitboardId, i, j): random.Random(seed).getrandbits(bitsize)
+            for i in range(self.sizeI)
+            for j in range(self.sizeJ)
+        }
 
-    board = [['0'] * 4 for _ in range(4)]
-    board[2][1] = '1'
-    totalTimeArray = 0
-    # testing simplest/optimal case for array allocation
-    # delete old place, and set new place
-    for _ in range(loop):
-        start = time.time()
-        board[2][1] = '0'
-        board[3][1] = '1'
-        end = time.time()
-        board[2][1] = '1'
-        board[3][1] = '0'
-        totalTimeArray += end - start
+    def generateZobristTable(self, seed=time.time()):
+        table = {}
+        for bitboardId in self.bitboardManager.keys():
+            table.update(self._generateZobristTableForAPiece(bitboardId, seed))
+        return table
 
-    print("total time with bitboard: ", totalTimeBitboard)
-    print("total time with array: ", totalTimeArray)
+    #Compute zobrist hash for current board
+    def zobrist_hash(self, additional_data_to_hash=None):
+        if additional_data_to_hash is None:
+            additional_data_to_hash = []
+        zobristTableRntry = []
+        for bitboardId in self.bitboardManager.keys():
+            bitboardIdSetBitsIndex = self.getIndexOfSetBits(self.bitboardManager[bitboardId].data)
+            for index in bitboardIdSetBitsIndex:
+                i, j = self._index1dTo2d(index)
+                zobristTableRntry.append(self.zobristTable[(bitboardId, i, j)])
 
+        zobristTableRntry.extend(additional_data_to_hash)
+        return reduce(lambda x, y: x ^ y, zobristTableRntry)
+
+    def __hash__(self):
+        return hash(self.zobrist_hash())
 
 if __name__ == '__main__':
+    
+    pass
     # bm = BitboardManager()
     # bm.buildBitboard('1', 4, 3)
     # bm.setPiece('1', 3, 1)
@@ -350,7 +361,6 @@ if __name__ == '__main__':
     # bluePawnMovements = {'1': [(-1, 0), (-1, 1), (-1, -1)]}
     # print(bm.generateAllPossibleMoves(bluePawnMovements, {'1': (3, 1)}))
 
-    test()
 
 # if __name__ == '__main__':
 #     bm = BitboardManager()

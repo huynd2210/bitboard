@@ -18,3 +18,17 @@ def saveState(state):
     conn.commit()
 
     conn.close()
+
+
+
+
+if __name__ == '__main__':
+    from functools import reduce
+
+    # Example list
+    numbers = [32,123,43]
+
+    # XOR everything in the list
+    result = reduce(lambda x, y: x ^ y, numbers)
+
+    print("XOR result:", result)

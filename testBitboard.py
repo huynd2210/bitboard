@@ -71,8 +71,41 @@ def testMovePieceAgainstOptimizedMovePiece():
 
 # def testMovePieceAgainstArrayMovePiece():
 
+def test():
+    bm = BitboardManager()
+    bm.buildBitboard('1', 4, 4)
+    bm.setPiece('1', 2, 1)
+    loop = 100000
+    totalTimeBitboard = 0
+
+    for _ in range(loop):
+        start = time.time()
+        # bm.movePieceOptimized('1', 2, 1, 3, 1)
+        bm['1'].data ^= ((1 << ((2 * 4) + 1)) | (1 << ((3 * 4) + 1)))
+
+        end = time.time()
+        bm.movePieceOptimized('1', 3, 1, 2, 1)
+        totalTimeBitboard += end - start
+
+    board = [['0'] * 4 for _ in range(4)]
+    board[2][1] = '1'
+    totalTimeArray = 0
+    # testing simplest/optimal case for array allocation
+    # delete old place, and set new place
+    for _ in range(loop):
+        start = time.time()
+        board[2][1] = '0'
+        board[3][1] = '1'
+        end = time.time()
+        board[2][1] = '1'
+        board[3][1] = '0'
+        totalTimeArray += end - start
+
+    print("total time with bitboard: ", totalTimeBitboard)
+    print("total time with array: ", totalTimeArray)
 
 if __name__ == '__main__':
     game = PawnRevolt.Game
     print(game.getAllPossibleMoves(True))
 
+    # test()
