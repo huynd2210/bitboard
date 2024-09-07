@@ -1,6 +1,10 @@
 class TranspositionTable:
-    def __init__(self):
-        self.table = {}
+    def __init__(self, persitanceOption="shelve"):
+        if persitanceOption == "shelve":
+            import shelve
+            self.table = shelve.open("table.db")
+        elif persitanceOption == "memory":
+            self.table = {}
 
     def store(self, state_hash, value, depth, isEnd, parent_hash, isFirstPlayerTurn, nextBestMove):
         self.table[state_hash] = (value, depth, isEnd, parent_hash, isFirstPlayerTurn, nextBestMove)

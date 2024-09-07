@@ -36,13 +36,42 @@ def testSetAllBitsAtRow():
     bm.setAllBitsAtRow('a', 0)
     assert bm['a'].data == 7
 
+def testIsAnyPieceSetAtRow_True():
+    bm = BitboardManager()
+    bm.buildBitboard('a', 3, 3)
+    bm.setAllBitsAtRow('a', 0)
+    assert bm.isAnyPieceSetAtRow('a', 0) is True
 
+def testIsAnyPieceSetAtRow_False():
+    bm = BitboardManager()
+    bm.buildBitboard('a', 3, 3)
+    assert bm.isAnyPieceSetAtRow('a', 0) is False
+
+def testIsAllPieceSetAtRow_True():
+    bm = BitboardManager()
+    bm.buildBitboard('a', 3, 3)
+    bm.setAllBitsAtRow('a', 0)
+    assert bm.isAllPieceSetAtRow('a', 0) is True
+
+def testIsAllPieceSetAtRow_False():
+    bm = BitboardManager()
+    bm.buildBitboard('a', 3, 3)
+    assert bm.isAllPieceSetAtRow('a', 0) is False
+
+def testIsAllPieceSetAtRow_NotAllSet_True():
+    bm = BitboardManager()
+    bm.buildBitboard('a', 3, 3)
+    bm.setPiece('a', 0, 0)
+    assert bm.isAllPieceSetAtRow('a', 0) is False
 def testGetAllPossibleMoves():
     bm = BitboardManager()
     bm.buildBitboard('1', 4, 3)
     bm.setPiece('1', 3, 1)
     bluePawnMovements = {'1': [(-1, 0), (-1, 1), (-1, -1)]}
     assert len(bm.generateAllPossibleMoves(bluePawnMovements, {'1': (3, 1)})['1']) == 3
+
+
+
 
 
 def runMovePieceStressTest():
