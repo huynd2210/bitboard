@@ -71,7 +71,7 @@ def testGetAllPossibleMoves():
     assert len(bm.generateAllPossibleMoves(bluePawnMovements, {'1': (3, 1)})['1']) == 3
 
 
-def testZobristHash():
+def test_zobrist_hash_same_board_should_have_same_hash():
     bm = BitboardManager(zobristSeed=12345, useZobrist=True)
     bm.buildBitboard('1', 4, 4)
     bm.setPiece('1', 3, 1)
@@ -79,7 +79,7 @@ def testZobristHash():
     bm.setPiece('1', 3, 2)
 
     bm.buildBitboard('2', 4, 4)
-    bm.setPiece('2', 3, 2)
+    bm.setPiece('2', 3, 3)
     bm.setPiece('2', 2, 3)
     bm.setPiece('2', 3, 4)
     zobrist_hash1 = bm.zobrist_hash()
@@ -91,13 +91,41 @@ def testZobristHash():
     bm2.setPiece('1', 3, 2)
 
     bm2.buildBitboard('2', 4, 4)
-    bm2.setPiece('2', 3, 2)
+    bm2.setPiece('2', 3, 3)
     bm2.setPiece('2', 2, 3)
     bm2.setPiece('2', 3, 4)
 
-    zobrist_hash2 = bm.zobrist_hash()
+    zobrist_hash2 = bm2.zobrist_hash()
 
     assert zobrist_hash1 == zobrist_hash2
+
+def test_zobrist_hash_different_board_should_have_different_hash():
+    bm = BitboardManager(zobristSeed=12345, useZobrist=True)
+    bm.buildBitboard('1', 4, 4)
+    bm.setPiece('1', 3, 1)
+    bm.setPiece('1', 2, 2)
+    bm.setPiece('1', 3, 2)
+
+    bm.buildBitboard('2', 4, 4)
+    bm.setPiece('2', 3, 3)
+    bm.setPiece('2', 2, 3)
+    bm.setPiece('2', 3, 4)
+    zobrist_hash1 = bm.zobrist_hash()
+
+    bm2 = BitboardManager(zobristSeed=12345, useZobrist=True)
+    bm2.buildBitboard('1', 4, 4)
+    bm2.setPiece('1', 3, 0)
+    bm2.setPiece('1', 2, 0)
+    bm2.setPiece('1', 3, 2)
+
+    bm2.buildBitboard('2', 4, 4)
+    bm2.setPiece('2', 3, 3)
+    bm2.setPiece('2', 2, 2)
+    bm2.setPiece('2', 3, 4)
+
+    zobrist_hash2 = bm2.zobrist_hash()
+
+    assert zobrist_hash1 != zobrist_hash2
 
 
 def runMovePieceStressTest():

@@ -364,11 +364,20 @@ class BitboardManager:
         return row, col
 
     def _generateZobristTableForAPiece(self, bitboardId, seed, bitsize=64):
-        return {
-            (bitboardId, i, j): random.Random(seed).getrandbits(bitsize)
-            for i in range(self.sizeI)
-            for j in range(self.sizeJ)
-        }
+        zobristTableForAPiece = {}
+        currentSeed = seed
+        for i in range(self.sizeI):
+            for j in range(self.sizeJ):
+                zobristTableForAPiece[(bitboardId, i, j)] = random.Random(currentSeed).getrandbits(bitsize)
+                random.seed(currentSeed)
+                currentSeed = int(random.random() * (2**32 - 1))
+
+        return zobristTableForAPiece
+        # return {
+        #     (bitboardId, i, j): random.Random(seed).getrandbits(bitsize)
+        #     for i in range(self.sizeI)
+        #     for j in range(self.sizeJ)
+        # }
 
     def _generateZobristTable(self):
         table = {}
