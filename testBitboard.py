@@ -71,7 +71,33 @@ def testGetAllPossibleMoves():
     assert len(bm.generateAllPossibleMoves(bluePawnMovements, {'1': (3, 1)})['1']) == 3
 
 
+def testZobristHash():
+    bm = BitboardManager(zobristSeed=12345, useZobrist=True)
+    bm.buildBitboard('1', 4, 4)
+    bm.setPiece('1', 3, 1)
+    bm.setPiece('1', 2, 2)
+    bm.setPiece('1', 3, 2)
 
+    bm.buildBitboard('2', 4, 4)
+    bm.setPiece('2', 3, 2)
+    bm.setPiece('2', 2, 3)
+    bm.setPiece('2', 3, 4)
+    zobrist_hash1 = bm.zobrist_hash()
+
+    bm2 = BitboardManager(zobristSeed=12345, useZobrist=True)
+    bm2.buildBitboard('1', 4, 4)
+    bm2.setPiece('1', 3, 1)
+    bm2.setPiece('1', 2, 2)
+    bm2.setPiece('1', 3, 2)
+
+    bm2.buildBitboard('2', 4, 4)
+    bm2.setPiece('2', 3, 2)
+    bm2.setPiece('2', 2, 3)
+    bm2.setPiece('2', 3, 4)
+
+    zobrist_hash2 = bm.zobrist_hash()
+
+    assert zobrist_hash1 == zobrist_hash2
 
 
 def runMovePieceStressTest():

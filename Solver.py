@@ -19,7 +19,7 @@ def solve(root: State, queue=None, transpositionTable=None):
             continue
         isStateInTT = resolveTT(root, transpositionTable)
         if not isStateInTT:
-            children = passInfoToChildren(root, root.getAllPossibleMoves())
+            children = passInfoToChildren(root, root.getAllPossibleNextStates())
             queue.extend(children)
     return None
 

@@ -17,3 +17,5 @@ E
 TranspositionTable.py,8\f\8fbe3da7a95f61149c10faa004afb286b6204c08
 D
 example/TicTacToe.py,1\6\16879213735c238dfad66dc8e1a066e2cf3e6be4
+B
+example/Onitama.py,9\5\9522134c73d449a86bf0a63eb9b6bd812578f532

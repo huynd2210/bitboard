@@ -18,7 +18,7 @@ class TicTacToeState(State):
     def isFirstPlayerTurn(self):
         pass
 
-    def getAllPossibleMoves(self):
+    def getAllPossibleNextStates(self):
         pass
 
     def hash(self):

@@ -1,7 +1,7 @@
 from State import State
 from bitboard import BitboardManager
 
-
+import random
 class Card:
     def __init__(self, name, movements, startPlayerIndicator):
         self.name = name
@@ -34,20 +34,43 @@ class CardList:
 class OnitamaState(State):
 
     def __init__(self):
-        self.bm = BitboardManager()
         self.sizeI = 5
         self.sizeJ = 5
+
+        self.bm = BitboardManager(self.sizeI, self.sizeJ)
+
+
         self.blueTempleCoordinate = (0, 2)
         self.redTempleCoordinate = (4, 2)
 
-        self.redPlayerCards = {}
-        self.bluePlayerCards = {}
+        self.redPlayerCards = []
+        self.bluePlayerCards = []
 
         self.neutralCard = None
 
         self.__initBoard()
+        self.__initCards()
+
+        self.currentPlayer = self.__determineFirstPlayer()
 
     def __initCards(self):
+        firstCard = random.choice(CardList.cardList)
+        self.redPlayerCards.append(firstCard)
+        CardList.cardList.remove(firstCard)
+
+        secondCard = random.choice(CardList.cardList)
+        self.bluePlayerCards.append(secondCard)
+        CardList.cardList.remove(secondCard)
+
+        thirdCard = random.choice(CardList.cardList)
+        self.redPlayerCards.append(thirdCard)
+        CardList.cardList.remove(thirdCard)
+
+        fourthCard = random.choice(CardList.cardList)
+        self.bluePlayerCards.append(fourthCard)
+        CardList.cardList.remove(fourthCard)
+
+        self.neutralCard = random.choice(CardList.cardList)
 
     def __initBoard(self):
         # B = Blue master, R = Red master, b = Blue pawn, r = Red pawn
@@ -59,6 +82,9 @@ class OnitamaState(State):
 
         self.__initBluePieces()
         self.__initRedPieces()
+
+    def __determineFirstPlayer(self):
+        return self.neutralCard.startPlayerIndicator
 
     def __initBluePieces(self):
         # Set master piece
@@ -96,11 +122,48 @@ class OnitamaState(State):
         # Is red master alive? -> if not then blue wins
         if self.bm.isEmpty('R'): return float('inf')
 
-    def isFirstPlayerTurn(self):
-        pass
 
-    def getAllPossibleMoves(self):
-        pass
+    def isFirstPlayerTurn(self):
+        return self.__determineFirstPlayer() == self.currentPlayer
+
+    def __getAllPossibleMovesWithCard(self, card: Card, currentPlayer):
+        pieceMovements = card.movements
+        if currentPlayer == 'B':
+            pieceLocationsPawn = self.bm.getCoordinatesOfPieces('b')
+            pieceLocationsMaster = self.bm.getCoordinatesOfPieces('B')
+            possibleMoves = self.bm.generateAllPossibleMoves('b', pieceMovements, pieceLocationsPawn)
+            possibleMoves.update(self.bm.generateAllPossibleMoves('B', pieceMovements, pieceLocationsMaster))
+        elif currentPlayer == 'R':
+            pieceLocationsPawn = self.bm.getCoordinatesOfPieces('r')
+            pieceLocationsMaster = self.bm.getCoordinatesOfPieces('R')
+            possibleMoves = self.bm.generateAllPossibleMoves('r', pieceMovements, pieceLocationsPawn)
+            possibleMoves.update(self.bm.generateAllPossibleMoves('R', pieceMovements, pieceLocationsMaster))
+        else:
+            raise Exception('Invalid player indicator')
+        return possibleMoves
+
+    #Basically generate next states
+    def getAllPossibleNextStates(self):
+        if self.currentPlayer == 'B':
+            movesWithFirstCard = self.__getAllPossibleMovesWithCard(self.bluePlayerCards[0], 'B')
+            movesWithSecondCard = self.__getAllPossibleMovesWithCard(self.bluePlayerCards[1], 'B')
+        elif self.currentPlayer == 'R':
+            movesWithFirstCard = self.__getAllPossibleMovesWithCard(self.redPlayerCards[0], 'R')
+            movesWithSecondCard = self.__getAllPossibleMovesWithCard(self.redPlayerCards[1], 'R')
+        else:
+            raise Exception('Invalid player indicator')
+
+
+
+
+
+        return
+
+    def generateNextStates(self, movesWithFirstCard, movesWithSecondCard):
+        nextStates = []
+        for bitboardId, move in movesWithFirstCard.items():
+
+
 
     def hash(self):
         pass

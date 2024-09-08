@@ -19,16 +19,29 @@ def saveState(state):
 
     conn.close()
 
+def flip_movements(movements):
+    """
+    Flips the movements by rotating them 180 degrees.
 
-
+    :param movements: List of tuples representing the movements.
+    :return: List of tuples representing the flipped movements.
+    """
+    return [(-x, -y) for x, y in movements]
 
 if __name__ == '__main__':
-    from functools import reduce
+    # from functools import reduce
+    #
+    # # Example list
+    # numbers = [32,123,43]
+    #
+    # # XOR everything in the list
+    # result = reduce(lambda x, y: x ^ y, numbers)
+    #
+    # print("XOR result:", result)
 
-    # Example list
-    numbers = [32,123,43]
+    tiger_movements = [(1, 0), (-1, 0), (0,-1)]
+    flipped_tiger_movements = flip_movements(tiger_movements)
 
-    # XOR everything in the list
-    result = reduce(lambda x, y: x ^ y, numbers)
+    print(f"Original: {tiger_movements}")
+    print(f"Flipped: {flipped_tiger_movements}")
 
-    print("XOR result:", result)

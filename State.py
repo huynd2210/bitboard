@@ -18,7 +18,7 @@ class State(ABC):
         pass
 
     @abstractmethod
-    def getAllPossibleMoves(self):
+    def getAllPossibleNextStates(self):
         pass
 
     @abstractmethod
