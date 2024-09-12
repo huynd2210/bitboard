@@ -130,12 +130,6 @@ class BitboardManager:
         piecePosition = (i * bitboard.sizeJ) + j
         bitboard.data = bitboard.data & ~(1 << piecePosition)
 
-    # can be optimized using bit shifts
-    # def movePiece(self, bitboardId, fromI, fromJ, toI, toJ):
-    #     if self.isPieceSet(bitboardId, fromI, fromJ):
-    #         self.deletePiece(bitboardId, fromI, fromJ)
-    #         self.setPiece(bitboardId, toI, toJ)
-
     def move(self, move):
         bitboardId, fromI, fromJ, toI, toJ = move
         self.movePieceOptimized(bitboardId, fromI, fromJ, toI, toJ)
@@ -172,12 +166,30 @@ class BitboardManager:
                 self.deletePiece(opponentBitboardId, toI, toJ)
 
     # classical game, piece cannot capture same piece type
-    def isLegalMove(self, fromI, fromJ, toI, toJ, originBitboardId):
+    def isLegalMove(self, fromI, fromJ, toI, toJ, originBitboardId, isCaptureOnly=False, targetBitboardId=None):
+        """
+        :param fromI: Index of the row from where piece is moved
+        :param fromJ: Index of the column from where piece is moved
+        :param toI: Index of the row to where piece is moved
+        :param toJ: Index of the column to where piece is moved
+        :param originBitboardId: bitboardId of the piece being moved
+        :param isCaptureOnly: True if only the move result in a capture.\
+         False if the move can be both a normal move or a capture. \
+         Set to true if for example when dealing with a pawn in chess
+        :param targetBitboardId: bitboardId of the piece being captured, only needed if isCaptureOnly is true
+        :return: True if move is legal, False otherwise
+
+        """
         if fromI == toI and fromJ == toJ:
             return False
 
         if not self.isInBound(fromI, fromJ) or not self.isInBound(toI, toJ):
             return False
+
+        if isCaptureOnly:
+            if targetBitboardId is None: raise ValueError("targetBitboardId cannot be None if isCaptureOnly is True")
+            if not self.isPieceSet(targetBitboardId, toI, toJ):
+                return False
 
         for bitboardId, bitboard in self.bitboardManager.items():
 

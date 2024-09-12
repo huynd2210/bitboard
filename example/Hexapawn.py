@@ -73,4 +73,13 @@ class HexapawnState(State):
         pass
 
     def getAllPossibleNextStatesFor1(self):
-        pieceCoords = self.bm.getPieceCoords('1')
+        firstPlayerPieceCoords = self.bm.getCoordinatesOfPieces('1')
+        secondPlayerPieceCoords = self.bm.getCoordinatesOfPieces('2')
+        nextStates = []
+
+        for coord in firstPlayerPieceCoords:
+            nextStates += self.bm.generateAllPossibleMoves('1', self.firstPlayerPawnMovements, coord)
+            nextStates += self.bm.generateAllPossibleMoves('1', self.firstPlayerPawnCaptureMovements, coord)
+
+        return nextStates
+
