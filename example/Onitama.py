@@ -33,15 +33,24 @@ class CardList:
 # Game is played from the perspective of red player
 class OnitamaState(State):
 
-    def __init__(self):
+    def __init__(self, isInitialState=True):
         self.sizeI = 5
         self.sizeJ = 5
-
-        self.bm = BitboardManager(self.sizeI, self.sizeJ)
-
-
         self.blueTempleCoordinate = (0, 2)
         self.redTempleCoordinate = (4, 2)
+
+        if isInitialState:
+            self.__initInitialState()
+
+    def passStateInformation(self, depth, parent_hash, currentPlayer, bluePlayerCards, redPlayerCards, neutralCard, bmInfoDump):
+        self.depth = depth
+        self.parent_hash = parent_hash
+        self.currentPlayer = currentPlayer
+        self.bm = BitboardManager(infoDump=bmInfoDump)
+
+
+    def __initInitialState(self):
+        self.bm = BitboardManager(self.sizeI, self.sizeJ)
 
         self.redPlayerCards = []
         self.bluePlayerCards = []
@@ -52,6 +61,8 @@ class OnitamaState(State):
         self.__initCards()
 
         self.currentPlayer = self.__determineFirstPlayer()
+
+        self.depth = 0
 
     def __initCards(self):
         firstCard = random.choice(CardList.cardList)
@@ -122,9 +133,14 @@ class OnitamaState(State):
         # Is red master alive? -> if not then blue wins
         if self.bm.isEmpty('R'): return float('inf')
 
+        return None
+
 
     def isFirstPlayerTurn(self):
         return self.__determineFirstPlayer() == self.currentPlayer
+
+    def __switchPlayerTurn(self):
+        self.currentPlayer = 'B' if self.currentPlayer == 'R' else 'R'
 
     def __getAllPossibleMovesWithCard(self, card: Card, currentPlayer):
         pieceMovements = card.movements
@@ -161,9 +177,36 @@ class OnitamaState(State):
 
     def generateNextStates(self, movesWithFirstCard, movesWithSecondCard):
         nextStates = []
-        for bitboardId, move in movesWithFirstCard.items():
+        for bitboardId, moveList in movesWithFirstCard.items():
+            # return state.hash(), state.value(), state.depth, state.isEnd(), state.parent_hash, state.isFirstPlayerTurn(), None
 
 
+            state = OnitamaState(isInitialState=False)
+
+
+
+            self.bm.moveWithCapture(bitboardId, moveList)
+
+            state.passStateInformation(depth=self.depth + 1, parent_hash=self.hash(), currentPlayer=self.__getOpponent())
+
+    def applyMove(self, move, cardUsed, bmInfoDump):
+        state = OnitamaState(isInitialState=False)
+        state.bm = BitboardManager(infoDump=bmInfoDump)
+    def __getOpponent(self):
+        return 'R' if self.currentPlayer == 'B' else 'B'
+
+    def __switchUsedCard(self, cardUsed):
+        #return: (firstBluePlayerCard, secondBluePlayerCard, firstRedPlayerCard, secondRedPlayerCard, neutralCard) after switching cards
+        if cardUsed == self.bluePlayerCards[0]:
+            return self.neutralCard, self.bluePlayerCards[1], self.redPlayerCards[0], self.redPlayerCards[1], self.bluePlayerCards[0]
+        elif cardUsed == self.bluePlayerCards[1]:
+            return self.bluePlayerCards[0], self.neutralCard, self.redPlayerCards[0], self.redPlayerCards[1], self.bluePlayerCards[1]
+        elif cardUsed == self.redPlayerCards[0]:
+            return self.bluePlayerCards[0], self.bluePlayerCards[1], self.neutralCard, self.redPlayerCards[1], self.redPlayerCards[0]
+        elif cardUsed == self.redPlayerCards[1]:
+            return self.bluePlayerCards[0], self.bluePlayerCards[1], self.redPlayerCards[0], self.neutralCard, self.redPlayerCards[1]
+        else:
+            raise Exception('Invalid card used')
 
     def hash(self):
         pass

@@ -1,11 +1,13 @@
 
-=python:S1700"Rename field "bitboardManager"(ÇÎ½8İÏåùœ2
-Cpython:S125†"Remove this commented out code.(¹£¶úøÿÿÿÿ8ŞÏåùœ2
-Tpython:S1135¡"4Complete the task associated to this "TODO" comment.(°Ø›ø8ŞÏåùœ2
-Ypython:S1135¥"4Complete the task associated to this "TODO" comment.(ÓºÊıÿÿÿÿÿ8ŞÏåùœ2
-Tpython:S1135®"4Complete the task associated to this "TODO" comment.(‘¸8ŞÏåùœ2
-=python:S125Î"Remove this commented out code.(€àË&8ŞÏåùœ2
-]python:S112ê">Replace this generic exception class with a more specific one.(½Ü£8ßÏåùœ2
-Hpython:S108“")Either remove or fill this block of code.(ã‘Û¾8àÏåùœ2
-=python:S125”"Remove this commented out code.( ¼ŞI8àÏåùœ2
-Cpython:S125›"Remove this commented out code.(¿œØóûÿÿÿÿ8àÏåùœ2
+=python:S1700"Rename field "bitboardManager"(ÇÎ½8Ş—÷2
+Cpython:S125"Remove this commented out code.(¹£¶úøÿÿÿÿ8Ş—÷2
+Tpython:S1135«"4Complete the task associated to this "TODO" comment.(°Ø›ø8Ş—÷2
+Ypython:S1135¯"4Complete the task associated to this "TODO" comment.(ÓºÊıÿÿÿÿÿ8Ş—÷2
+Tpython:S1135¸"4Complete the task associated to this "TODO" comment.(‘¸8Ş—÷2
+=python:S125Ø"Remove this commented out code.(€àË&8ß—÷2
+]python:S112ô">Replace this generic exception class with a more specific one.(½Ü£8ß—÷2
+>python:S125‚"Remove this commented out code.(äÓ•¶8ß—÷2
+]python:S112‘">Replace this generic exception class with a more specific one.( ãÑ 8ß—÷2
+Hpython:S108­")Either remove or fill this block of code.(ã‘Û¾8ß—÷2
+=python:S125®"Remove this commented out code.( ¼ŞI8ß—÷2
+Cpython:S125µ"Remove this commented out code.(¿œØóûÿÿÿÿ8ß—÷2

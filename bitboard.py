@@ -15,7 +15,11 @@ class Bitboard:
 
 # start from top left to bottom right, i.e 1 = 1 at (0,0)
 class BitboardManager:
-    def __init__(self, sizeI=0, sizeJ=0, useZobrist=False, zobristSeed=None):
+    def __init__(self, sizeI=0, sizeJ=0, useZobrist=False, zobristSeed=None, infoDump=None):
+        if infoDump is not None:
+            self.loadInfo(infoDump)
+            return
+
         self.bitboardManager = {}
         self.sizeI = sizeI
         self.sizeJ = sizeJ
@@ -25,6 +29,12 @@ class BitboardManager:
         self.zobristSeed = zobristSeed
         self.zobristTable = None
 
+
+    def dumpInfo(self):
+        return (self.bitboardManager, self.sizeI, self.sizeJ, self.zobristSeed, self.zobristTable)
+
+    def loadInfo(self, infoDump):
+        self.bitboardManager, self.sizeI, self.sizeJ, self.zobristSeed, self.zobristTable = infoDump
 
     def __getitem__(self, item):
         return self.bitboardManager[item]
@@ -151,7 +161,7 @@ class BitboardManager:
                     self.deletePiece(opponentBitboardId, toI, toJ)
 
     # capture a piece, only if destination to have enemy piece
-    def moveAndCaptureIfPossible(self, bitboardId, fromI, fromJ, toI, toJ, opponentBitboardIdList):
+    def moveAndCaptureOnlyIfPossible(self, bitboardId, fromI, fromJ, toI, toJ, opponentBitboardIdList):
         for opponentBitboardId, data in self.bitboardManager.items():
             if (
                     bitboardId != opponentBitboardId
@@ -313,9 +323,11 @@ class BitboardManager:
         return [(-i, -j) for i, j in movements]
 
     # params: bitboardId (piece), fromI, fromJ, possibleMovements,
-    # returns: list of moves (bitboardId, fromI, fromJ, toI, toJ)
+    # returns: list of moves: each move is (bitboardId, fromI, fromJ, toI, toJ)
+    #Assuming there is a piece present on (fromI, fromJ), else returns []
     def generateMoveForAPiece(self, bitboardId, fromI, fromJ, movements):
         if not self.isPieceSet(bitboardId, fromI, fromJ):
+            print("Warning: No piece present at (%d, %d)" % (fromI, fromJ))
             return []
 
         possibleMoves = []
@@ -385,17 +397,22 @@ class BitboardManager:
             table.update(self._generateZobristTableForAPiece(bitboardId, self.zobristSeed))
         return table
 
+    #Guard function for zobrist_hash()
+    def _zobristGuard(self):
+
+
     # Compute zobrist hash for current board
     def zobrist_hash(self, additional_data_to_hash=None):
         if self.useZobrist is False:
             raise Exception('Zobrist hashing is not enabled')
 
-        if self.useZobrist:
+        if self.zobristTable is None:
             self.zobristTable = self._generateZobristTable()
-
 
         if additional_data_to_hash is None:
             additional_data_to_hash = []
+
+
         zobristTableEntry = []
         for bitboardId in self.bitboardManager.keys():
             bitboardIdSetBitsIndex = self.getIndexOfSetBits(self.bitboardManager[bitboardId].data)
