@@ -398,11 +398,7 @@ class BitboardManager:
         return table
 
     #Guard function for zobrist_hash()
-    def _zobristGuard(self):
-
-
-    # Compute zobrist hash for current board
-    def zobrist_hash(self, additional_data_to_hash=None):
+    def _zobristGuard(self, additional_data_to_hash=None):
         if self.useZobrist is False:
             raise Exception('Zobrist hashing is not enabled')
 
@@ -410,8 +406,15 @@ class BitboardManager:
             self.zobristTable = self._generateZobristTable()
 
         if additional_data_to_hash is None:
-            additional_data_to_hash = []
+            return []
+        else:
+            return additional_data_to_hash
 
+
+
+    # Compute zobrist hash for current board
+    def zobrist_hash(self, additional_data_to_hash=None):
+        additional_data_to_hash = self._zobristGuard(additional_data_to_hash)
 
         zobristTableEntry = []
         for bitboardId in self.bitboardManager.keys():
