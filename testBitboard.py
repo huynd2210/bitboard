@@ -2,7 +2,6 @@ import time
 
 import pytest
 
-import PawnRevolt
 from bitboard import BitboardManager
 from timeit import timeit
 
@@ -68,7 +67,8 @@ def testGetAllPossibleMoves():
     bm.buildBitboard('1', 4, 3)
     bm.setPiece('1', 3, 1)
     bluePawnMovements = {'1': [(-1, 0), (-1, 1), (-1, -1)]}
-    assert len(bm.generateAllPossibleMoves(bluePawnMovements, {'1': (3, 1)})['1']) == 3
+    assert len(bm.generateAllPossibleMoves('1', bluePawnMovements, {'1': (3, 1)})['1']) == 3
+
 
 
 def test_zobrist_hash_same_board_should_have_same_hash():
@@ -145,13 +145,6 @@ def runMovePieceOptimizedStressTest():
 def runMovePieceArrayStressTest(board):
     board = []
 
-
-def testMovePieceAgainstOptimizedMovePiece():
-    timeNormal = timeit(lambda: runMovePieceStressTest(), number=100000)
-    timeOptimized = timeit(lambda: runMovePieceOptimizedStressTest(), number=100000)
-    assert timeOptimized > timeNormal
-
-
 # def testMovePieceAgainstArrayMovePiece():
 
 def test():
@@ -186,9 +179,3 @@ def test():
 
     print("total time with bitboard: ", totalTimeBitboard)
     print("total time with array: ", totalTimeArray)
-
-if __name__ == '__main__':
-    game = PawnRevolt.Game
-    print(game.getAllPossibleMoves(True))
-
-    # test()

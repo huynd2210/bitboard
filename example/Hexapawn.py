@@ -34,7 +34,7 @@ class HexapawnState(State):
 
 
     def __initBoard(self):
-        self.bm = BitboardManager(self.sizeI, self.sizeJ)
+        self.bm = BitboardManager(self.sizeI, self.sizeJ, useZobrist=True)
         self.bm.buildBitboard('1')
         self.bm.buildBitboard('2')
 
@@ -67,19 +67,35 @@ class HexapawnState(State):
         self.bm.loadInfo(infoDump)
 
     def hash(self):
-        pass
+        return self.bm.zobrist_hash()
 
     def getAllPossibleNextStates(self):
-        pass
+        if self.currentPlayer == '1':
+            return self.getAllPossibleNextStatesFor1()
+        else:
+            return self.getAllPossibleNextStatesFor2()
 
     def getAllPossibleNextStatesFor1(self):
         firstPlayerPieceCoords = self.bm.getCoordinatesOfPieces('1')
-        secondPlayerPieceCoords = self.bm.getCoordinatesOfPieces('2')
         nextStates = []
 
         for coord in firstPlayerPieceCoords:
-            nextStates += self.bm.generateAllPossibleMoves('1', self.firstPlayerPawnMovements, coord)
-            nextStates += self.bm.generateAllPossibleMoves('1', self.firstPlayerPawnCaptureMovements, coord)
+            nextStates += self.bm.generateAllPossibleMoves('1', {'1', self.firstPlayerPawnMovements}, coord)
+            nextStates += self.bm.generateAllPossibleMoves('1', {'1', self.firstPlayerPawnCaptureMovements}, coord)
 
         return nextStates
 
+    def getAllPossibleNextStatesFor2(self):
+        secondPlayerPieceCoords = self.bm.getCoordinatesOfPieces('2')
+        nextStates = []
+
+        for coord in secondPlayerPieceCoords:
+            nextStates += self.bm.generateAllPossibleMoves('2', {'2', self.secondPlayerPawnMovements}, coord)
+            nextStates += self.bm.generateAllPossibleMoves('2', {'2', self.secondPlayerPawnCaptureMovements}, coord)
+
+        return nextStates
+
+
+if __name__ == '__main__':
+    game = HexapawnState()
+    print(game.getAllPossibleNextStates())
