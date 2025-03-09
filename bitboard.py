@@ -25,9 +25,13 @@ class BitboardManager:
         self.sizeI = sizeI
         self.sizeJ = sizeJ
         self.useZobrist = useZobrist
+        
+        # Set zobristSeed with a default if None
         if zobristSeed is None:
-            self.zobristSeed = time.time()
-        self.zobristSeed = zobristSeed
+            self.zobristSeed = int(time.time() * 1000)  # Use milliseconds for more uniqueness
+        else:
+            self.zobristSeed = zobristSeed
+            
         self.zobristTable = None
 
     def dumpInfo(self):

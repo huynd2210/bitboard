@@ -1,0 +1,1398 @@
+Directory structure:
+└── bitboard/
+    ├── PawnRevolt.py
+    ├── PawnRevoltUtil.py
+    ├── State.py
+    ├── TranspositionTable.py
+    ├── Util.py
+    ├── bitboard.py
+    ├── testBitboard.py
+    └── example/
+        ├── Hexapawn.py
+        ├── Onitama.py
+        └── TicTacToe.py
+
+================================================
+File: PawnRevolt.py
+================================================
+from typing import List
+
+from bitboard import BitboardManager
+from pairing_functions import szudzik
+
+
+class Game:
+    def __init__(self, sizeI=7, sizeJ=5):
+        self.bm = BitboardManager()
+        self.current_player = '1'
+        self.sizeI = sizeI
+        self.sizeJ = sizeJ
+        self.isEnd = None
+        self.winner = ''
+        self.pieceCoord = {}
+        self._initBoard(sizeI, sizeJ)
+        self.parentPlayer1Board = None
+        self.parentPlayer2Board = None
+
+    def make_move(self, move):
+        # move = tuple(map(lambda s: ("ABCDEFGHIJ".index(s[0]), int(s[1:])), move.split(" ")))
+        bitboardId, fromI, fromJ, toI, toJ = move
+        opponent = '1' if self.current_player == '2' else '2'
+        self.bm.moveWithCapture(bitboardId, fromI, fromJ, toI, toJ, [opponent])
+        self.current_player = '1' if self.current_player == '2' else '2'
+
+    def show(self):
+        self.bm.showAllBitboard()
+
+    def is_over(self):
+        if self.bm.isAnyPieceSetAtRow('1', 0):
+            self.winner = '1'
+            return True
+        if self.bm.isAnyPieceSetAtRow('2', self.bm.sizeI - 1):
+            self.winner = '2'
+            return True
+        if self.bm.isEmpty('1'):
+            self.winner = '2'
+            return True
+        if self.bm.isEmpty('2'):
+            self.winner = '1'
+            return True
+        return False
+
+    # def lose(self):
+    #     self.hasLost = self.opponent_index == int(self.is_over())
+
+    def _initBoard(self, sizeI, sizeJ):
+        self.bm.buildBitboard('1', sizeI, sizeJ)
+        self.bm.buildBitboard('2', sizeI, sizeJ)
+        self.bm.setAllBitsAtRow('2', 0)
+        self.bm.setAllBitsAtRow('2', 1)
+        self.bm.setAllBitsAtRow('1', sizeI - 2)
+        self.bm.setAllBitsAtRow('1', sizeI - 1)
+        pieceFor2 = []
+
+        for i in range(2):
+            for j in range(sizeJ):
+                pieceFor2.append((i, j))
+
+        self.pieceCoord['2'] = pieceFor2
+
+        pieceFor1 = []
+        for i in range(sizeI - 2, sizeI):
+            for j in range(sizeJ):
+                pieceFor1.append((i, j))
+
+        self.pieceCoord['1'] = pieceFor1
+
+    def getAllPossibleMovesFor1(self):
+        bluePawnMovements = {'1': [(-1, 0), (-1, 1), (-1, -1)]}
+        return self.bm.generateAllPossibleMoves('1', bluePawnMovements, self.pieceCoord)
+
+    def getAllPossibleMovesFor2(self):
+        redPawnMovements = {'2': [(1, 0), (1, 1), (1, -1)]}
+        return self.bm.generateAllPossibleMoves('2', redPawnMovements, self.pieceCoord)
+
+    def getAllPossibleMoves(self, isFirstPlayerTurn):
+        possibleMoves = self.getAllPossibleMovesFor1() if isFirstPlayerTurn else self.getAllPossibleMovesFor2()
+        possibleMoves = list(possibleMoves.values())
+
+        # return list(map(lambda move: "ABCDEFGHIJ"[move[1]] + str(move[2]) + " " + "ABCDEFGHIJ"[move[3]] + str(move[4]),
+        #                 possibleMoves))
+        return possibleMoves[0]
+
+    def getAllNextStates(self, isFirstPlayerTurn):
+        possibleMoves = self.getAllPossibleMoves(isFirstPlayerTurn)
+        nextStates = []
+        currentState = self.saveGameState()
+        for move in possibleMoves:
+            self.make_move(move)
+            self.isEnd = self.is_over()
+            # currentState[0] is player '1' bitboard, currentState[1] is player '2' bitboard and hence the parent value
+            self.parentPlayer1Board = currentState[0]
+            self.parentPlayer2Board = currentState[1]
+            nextStates.append(self.saveGameState())
+            # reload currentState
+            self.loadState(currentState)
+        return nextStates
+
+    def loadFromQueue(self, queue, processBatchSize):
+        iteration = len(queue) if len(queue) < processBatchSize else processBatchSize
+        children = []
+        for i in range(iteration):
+            children.append(queue.pop())
+        return children
+
+
+
+    def saveGameState(self):
+        return self.bm.bitboardManager['1'].data, self.bm[
+            '2'].data, self.current_player, self.isEnd, self.winner, self.parentPlayer1Board, self.parentPlayer2Board
+
+    def loadState(self, state):
+        firstPlayerBitboard, secondPlayerBitboard, currentPlayer, isEnd, winner, parentPlayer1Board, parentPlayer2Board = state
+        self.bm.bitboardManager['1'].data = firstPlayerBitboard
+        self.bm.bitboardManager['2'].data = secondPlayerBitboard
+        self.current_player = currentPlayer
+        self.isEnd = isEnd
+        self.winner = winner
+        self.parentPlayer1Board = parentPlayer1Board
+        self.parentPlayer2Board = parentPlayer2Board
+
+    def solveQueue(self, queue: List, buffer: List, transpositionTable: set):
+        for state in queue:
+            game.loadState(state)
+            stateHash = szudzik.pair(self.bm.bitboardManager['1'].data, self.bm.bitboardManager['2'])
+            # if hash is in table then we checked it
+            # if hash is not in table, then we expand the children of the states and put into buffer
+            # table will be persisted in db
+
+            if stateHash not in transpositionTable:
+                children = self.getAllNextStates(self.current_player == '1')
+                buffer.append(children)
+                transpositionTable.add(stateHash)
+        return buffer
+
+    # There are queue and buffer, the problem is due to bfs, the number of children processed is less than the number of children generated.
+    # therefore we will run out of RAM. The each "round" some children in buffer will be transfered to queue. Then queue will be processed.
+    # Children generated from solveQueue is added to buffer (the processed children is saved in table/DB).
+    # Should the buffersize > some threshold, then the number of children equal to some number < threshold is saved into DB.
+    # When buffer ran out, children from buffer table in DB is loaded out.
+    # Repeat until buffer in RAM and in DB is empty which should indicate that the entire tree is searched.
+    # Afterwards, we need to backpropagate the result (as well as the next best move) according to minmax algo to the root.
+    def solve(self):
+        isFirstPlayerTurn = True
+        children = self.getAllNextStates(isFirstPlayerTurn)
+
+        queue = []
+        for child in children:
+            self.loadState(child)
+            queue.append(self.getAllNextStates(not isFirstPlayerTurn))
+
+
+# def solve(self):
+#     isFirstPlayerTurn = True
+#     children = self.getAllNextStates(isFirstPlayerTurn)
+#
+#     queue = []
+#     for child in children:
+#         self.loadState(child)
+#         queue.append(self.getAllNextStates(not isFirstPlayerTurn))
+#         # saveChild
+#     self.saveBatch(queue, batchSize=3000)
+#
+# def saveBatch(self, queue, batchSize):
+#     if len(queue) >= batchSize:
+#         # do save
+#         pass
+
+
+if __name__ == '__main__':
+    game = Game()
+    # game.printBoard()
+    # print("------------")
+    # possibleMoves = game.getAllPossibleMoves(True)
+    # game.make_move(possibleMoves[0])
+    # game.printBoard()
+    # print(game.getGameState())
+
+    nextStates = game.getAllNextStates(True)
+    for state in nextStates:
+        game.loadState(state)
+        game.printBoard()
+        print("--------")
+        print(game.saveGameState())
+
+
+================================================
+File: PawnRevoltUtil.py
+================================================
+from PawnRevolt import Game
+
+def printBitboards(game: Game):
+    game.bm.showAllBitboard()
+
+def printListAsGrid(input):
+    for i in input:
+        print(i)
+
+def printBoard(game: Game):
+    printListAsGrid(game.bm.translateBitboardsToMailbox())
+
+================================================
+File: State.py
+================================================
+from abc import ABC, abstractmethod
+
+import copy
+class State(ABC):
+    parent_hash = None
+    depth = 0
+    @abstractmethod
+    def isEnd(self):
+        pass
+
+    @abstractmethod
+    #Get value of this state. Win for first player is infinity, win for second player is -infinity, draw is 0
+    def value(self):
+        pass
+
+    @abstractmethod
+    def isFirstPlayerTurn(self):
+        pass
+
+    @abstractmethod
+    def getAllPossibleNextStates(self):
+        pass
+
+    @abstractmethod
+    def hash(self):
+        pass
+
+    def __hash__(self):
+        return hash(self.hash())
+
+    def copy(self):
+        return copy.deepcopy(self)
+
+
+
+
+================================================
+File: TranspositionTable.py
+================================================
+class TranspositionTable:
+    def __init__(self, persitanceOption="shelve", name="table.db"):
+        if persitanceOption == "shelve":
+            import shelve
+            self.table = shelve.open(name)
+        elif persitanceOption == "memory":
+            self.table = {}
+
+    def store(self, state_hash, value, depth, isEnd, parent_hash, isFirstPlayerTurn, nextBestMove, *args):
+        self.table[state_hash] = (value, depth, isEnd, parent_hash, isFirstPlayerTurn, nextBestMove, *args)
+
+    def retrieve(self, state_hash):
+        if state_hash in self.table:
+            return self.table[state_hash]
+        else:
+            return None
+
+    def contains(self, state_hash):
+        return state_hash in self.table
+
+
+================================================
+File: Util.py
+================================================
+import psycopg2
+
+def connectPostgres(host, databaseName, user, password, port):
+    conn = psycopg2.connect(
+        host=host,
+        database=databaseName,
+        user=user,
+        password=password,
+        port=port
+    )
+    return conn
+
+def saveState(state):
+    conn = connectPostgres('127.0.0.1', 'postgres', 'postgres', 'postgres', 5432)
+    cursor = conn.cursor()
+    sql = 'insert into states(state_id, player1_board, player2_board, current_player, isEnd, winner, parent_id) values (%s, %s, %s, %s, %s, %s, %s) returning state_id;'
+    cursor.execute(sql, (state))
+    conn.commit()
+
+    conn.close()
+
+def flip_movements(movements):
+    """
+    Flips the movements by rotating them 180 degrees.
+
+    :param movements: List of tuples representing the movements.
+    :return: List of tuples representing the flipped movements.
+    """
+    return [(-x, -y) for x, y in movements]
+
+if __name__ == '__main__':
+    # from functools import reduce
+    #
+    # # Example list
+    # numbers = [32,123,43]
+    #
+    # # XOR everything in the list
+    # result = reduce(lambda x, y: x ^ y, numbers)
+    #
+    # print("XOR result:", result)
+
+    tiger_movements = [(1, 0), (-1, 0), (0,-1)]
+    flipped_tiger_movements = flip_movements(tiger_movements)
+
+    print(f"Original: {tiger_movements}")
+    print(f"Flipped: {flipped_tiger_movements}")
+
+
+
+================================================
+File: bitboard.py
+================================================
+import time
+from functools import lru_cache, reduce
+import random
+from typing import Union, Dict, List
+
+
+class Bitboard:
+    def __init__(self, data: int, sizeI, sizeJ):
+        self.data = data
+        self.sizeI = sizeI
+        self.sizeJ = sizeJ
+
+    def __str__(self):
+        return str(self.data)
+
+
+# start from top left to bottom right, i.e 1 = 1 at (0,0)
+class BitboardManager:
+    def __init__(self, sizeI=0, sizeJ=0, useZobrist=False, zobristSeed=None, infoDump=None):
+        if infoDump is not None:
+            self.loadInfo(infoDump)
+            return
+
+        self.bitboardManager = {}
+        self.sizeI = sizeI
+        self.sizeJ = sizeJ
+        self.useZobrist = useZobrist
+        if zobristSeed is None:
+            self.zobristSeed = time.time()
+        self.zobristSeed = zobristSeed
+        self.zobristTable = None
+
+    def dumpInfo(self):
+        return (self.bitboardManager, self.sizeI, self.sizeJ, self.zobristSeed, self.zobristTable)
+
+    def loadInfo(self, infoDump):
+        self.bitboardManager, self.sizeI, self.sizeJ, self.zobristSeed, self.zobristTable = infoDump
+
+    def __getitem__(self, item):
+        return self.bitboardManager[item]
+
+    def __setitem__(self, key, value):
+        self.bitboardManager[key] = value
+
+    def translateMailboxToBitboards(self, board):
+        sizeI = len(board)
+        sizeJ = len(board[0])
+        for i in range(sizeI):
+            for j in range(sizeJ):
+                piece = board[i][j]
+                if str(piece) not in self.bitboardManager:
+                    self.buildBitboard(piece, sizeI, sizeJ)
+                self.setPiece(piece, i, j)
+
+    def translateBitboardsToMailbox(self):
+        board = []
+
+        for _ in range(self.sizeI):
+            row = ['.' for _ in range(self.sizeJ)]
+            board.append(row)
+
+        for bitboardId, bitboard in self.bitboardManager.items():
+            for i in range(bitboard.sizeI):
+                for j in range(bitboard.sizeJ):
+                    if self.isPieceSet(bitboardId, i, j):
+                        board[i][j] = bitboardId
+        return board
+
+    def buildBitboard(self, bitboardId, sizeI=None, sizeJ=None):
+        if sizeI is None:
+            sizeI = self.sizeI
+        if sizeJ is None:
+            sizeJ = self.sizeJ
+
+        bitboardId = self.enforceStringTypeId(bitboardId)
+        self.bitboardManager[bitboardId] = Bitboard(0, sizeI, sizeJ)
+        self.sizeI = sizeI
+        self.sizeJ = sizeJ
+
+    def showBitboard(self, bitboardId):
+        bitboard = self.bitboardManager[bitboardId]
+        board = "{0:b}".format(bitboard.data)
+        if len(board) < bitboard.sizeI * bitboard.sizeJ:
+            board = self.padBitboard(board, bitboard.sizeI * bitboard.sizeJ)
+
+        for i in range(len(board) - 1, -1, -1):
+            endLineIndex = (i + 1)
+            print(f"[{board[i]}]") if endLineIndex % bitboard.sizeJ == 1 and endLineIndex != len(board) \
+                else print(f"[{board[i]}]", end="")
+
+    def showAllBitboard(self):
+        for key in self.bitboardManager:
+            print(key, ':')
+            self.showBitboard(key)
+            print()
+
+    def padBitboard(self, board, maxSize):
+        pad = '0' * (maxSize - len(board))
+        return pad + board
+
+    def isInBound(self, i, j):
+        return 0 <= i < self.sizeI and 0 <= j < self.sizeJ
+
+    def isEmpty(self, bitboardId):
+        return self.bitboardManager[bitboardId].data == 0
+
+    def isPieceSet(self, bitboardId, i, j):
+        bitboardId = self.enforceStringTypeId(bitboardId)
+        bitboard = self.bitboardManager[bitboardId]
+        if not self.isInBound(i, j):
+            return False
+        piecePosition = (i * bitboard.sizeJ) + j
+        return ((bitboard.data >> piecePosition) & 1) == 1
+
+    # Set piece at (i,j), which basically means set a bit at (i,j)
+    def setPiece(self, bitboardId, i, j):
+        bitboardId = self.enforceStringTypeId(bitboardId)
+        bitboard = self.bitboardManager[bitboardId]
+        if not self.isInBound(i, j):
+            return
+        piecePosition = (i * bitboard.sizeJ) + j
+        bitboard.data = bitboard.data | (1 << piecePosition)
+
+    def deletePiece(self, bitboardId, i, j):
+        bitboardId = self.enforceStringTypeId(bitboardId)
+        bitboard = self.bitboardManager[bitboardId]
+        if not self.isInBound(i, j):
+            return
+        piecePosition = (i * bitboard.sizeJ) + j
+        bitboard.data = bitboard.data & ~(1 << piecePosition)
+
+    def move(self, move):
+        bitboardId, fromI, fromJ, toI, toJ = move
+        self.movePieceOptimized(bitboardId, fromI, fromJ, toI, toJ)
+
+    def movePieceOptimized(self, bitboardId, fromI, fromJ, toI, toJ):
+        # bitboardId = self.enforceStringTypeId(bitboardId)
+        if not self.isInBound(fromI, fromJ) or not self.isInBound(toI, toJ):
+            return
+        bitboard = self.bitboardManager[bitboardId]
+        if self.isPieceSet(bitboardId, fromI, fromJ):
+            fromPosition = (fromI * bitboard.sizeJ) + fromJ
+            toPosition = (toI * bitboard.sizeJ) + toJ
+            bitboard.data ^= ((1 << fromPosition) | (1 << toPosition))
+
+    def moveWithCapture(self, bitboardId, fromI, fromJ, toI, toJ, opponentBitboardIdList):
+        for opponentBitboardId, data in self.bitboardManager.items():
+            if (
+                    bitboardId != opponentBitboardId
+                    and opponentBitboardId in opponentBitboardIdList
+            ):
+                self.movePieceOptimized(bitboardId, fromI, fromJ, toI, toJ)
+                if self.isPieceSet(opponentBitboardId, toI, toJ):
+                    self.deletePiece(opponentBitboardId, toI, toJ)
+
+    # capture a piece, only if destination to have enemy piece
+    def moveAndCaptureOnlyIfPossible(self, bitboardId, fromI, fromJ, toI, toJ, opponentBitboardIdList):
+        for opponentBitboardId, data in self.bitboardManager.items():
+            if (
+                    bitboardId != opponentBitboardId
+                    and opponentBitboardId in opponentBitboardIdList
+                    and self.isPieceSet(opponentBitboardId, toI, toJ)
+            ):
+                self.movePieceOptimized(bitboardId, fromI, fromJ, toI, toJ)
+                self.deletePiece(opponentBitboardId, toI, toJ)
+
+    # classical game, piece cannot capture same piece type
+    def isLegalMove(self, fromI, fromJ, toI, toJ, originBitboardId, isCaptureOnly=False, targetBitboardId=None):
+        """
+        :param fromI: Index of the row from where piece is moved
+        :param fromJ: Index of the column from where piece is moved
+        :param toI: Index of the row to where piece is moved
+        :param toJ: Index of the column to where piece is moved
+        :param originBitboardId: bitboardId of the piece being moved
+        :param isCaptureOnly: True if only the move result in a capture.\
+         False if the move can be both a normal move or a capture. \
+         Set to true if for example when dealing with a pawn in chess
+        :param targetBitboardId: bitboardId of the piece being captured, only needed if isCaptureOnly is true
+        :return: True if move is legal, False otherwise
+
+        """
+        if fromI == toI and fromJ == toJ:
+            return False
+
+        if not self.isInBound(fromI, fromJ) or not self.isInBound(toI, toJ):
+            return False
+
+        if isCaptureOnly:
+            if targetBitboardId is None: raise ValueError("targetBitboardId cannot be None if isCaptureOnly is True")
+            if not self.isPieceSet(targetBitboardId, toI, toJ):
+                return False
+
+        for bitboardId, bitboard in self.bitboardManager.items():
+
+            # basically self.isPieceSet but without checks
+            originPiecePosition = (fromI * bitboard.sizeJ) + fromJ
+            destinationPiecePosition = (toI * bitboard.sizeJ) + toJ \
+                # if origin is not set then false
+            if ((bitboard.data >> originPiecePosition) & 1) == 0 and bitboardId == originBitboardId:
+                return False
+
+            # if origin and destination is same then move is not legal
+            if ((bitboard.data >> originPiecePosition) & 1) == 1 and (
+                    (bitboard.data >> destinationPiecePosition) & 1) == 1:
+                return False
+
+        return True
+
+    # can be optimized by using mask and or operation
+    def setAllBits(self, bitboardId):
+        bitboardId = self.enforceStringTypeId(bitboardId)
+        bitboard = self.bitboardManager[bitboardId]
+        for i in range(bitboard.sizeI):
+            for j in range(bitboard.sizeJ):
+                self.setPiece(bitboardId, i, j)
+
+    def setAllBitsAtRow(self, bitboardId, i):
+        bitboardId = self.enforceStringTypeId(bitboardId)
+        mask = 1
+        # build mask
+        for _ in range(self.sizeJ - 1):
+            mask = (mask * 2) + 1
+        mask <<= i * self.sizeJ
+        self[bitboardId].data = self[bitboardId].data | mask
+
+    def unsetAllBitsAtRow(self, bitboardId, i):
+        bitboardId = self.enforceStringTypeId(bitboardId)
+        mask = 1
+        # Build mask with all bits set to 1
+        for _ in range(self.sizeJ - 1):
+            mask = (mask * 2) + 1
+
+        # Shift the mask to the position of the specified row
+        mask <<= i * self.sizeJ
+
+        # Invert the mask to unset the bits in the specified row
+        mask = ~mask
+
+        # Perform bitwise AND operation to unset the bits
+        self[bitboardId].data = self[bitboardId].data & mask
+
+    def setAllBitsAtColumn(self, bitboardId, j):
+        bitboardId = self.enforceStringTypeId(bitboardId)
+        mask = 1
+        # Build mask with only the bit in the specified column set to 1
+        for _ in range(self.sizeI - 1):
+            mask = (mask << self.sizeJ) | 1
+
+        # Shift the mask to the position of the specified column
+        mask <<= j
+
+        # Perform bitwise OR operation to set the bits
+        self[bitboardId].data = self[bitboardId].data | mask
+
+    def unsetAllBitsAtColumn(self, bitboardId, j):
+        bitboardId = self.enforceStringTypeId(bitboardId)
+        mask = 1
+        # Build mask with only the bit in the specified column set to 0
+        for _ in range(self.sizeI - 1):
+            mask = (mask << self.sizeJ) | 1
+
+        # Invert the mask to unset the bits in the specified column
+        mask = ~mask
+
+        # Shift the mask to the position of the specified column
+        mask <<= j
+
+        # Perform bitwise AND operation to unset the bits
+        self[bitboardId].data = self[bitboardId].data & mask
+
+    def deleteNeighbors(self, bitboardId, i, j):
+        self.deletePiece(bitboardId, i + 1, j)
+        self.deletePiece(bitboardId, i - 1, j)
+        self.deletePiece(bitboardId, i, j + 1)
+        self.deletePiece(bitboardId, i, j - 1)
+        self.deletePiece(bitboardId, i + 1, j + 1)
+        self.deletePiece(bitboardId, i + 1, j - 1)
+        self.deletePiece(bitboardId, i - 1, j + 1)
+        self.deletePiece(bitboardId, i - 1, j - 1)
+
+    def setNeighbors(self, bitboardId, i, j):
+        self.setPiece(bitboardId, i + 1, j)
+        self.setPiece(bitboardId, i - 1, j)
+        self.setPiece(bitboardId, i, j + 1)
+        self.setPiece(bitboardId, i, j - 1)
+        self.setPiece(bitboardId, i + 1, j + 1)
+        self.setPiece(bitboardId, i + 1, j - 1)
+        self.setPiece(bitboardId, i - 1, j + 1)
+        self.setPiece(bitboardId, i - 1, j - 1)
+
+    def combineBitboard(self, idList):
+        result = 0
+        for bitboardId in idList:
+            result |= self.bitboardManager[bitboardId]
+        return result
+
+    def enforceStringTypeId(self, bitboardId):
+        if type(bitboardId) is not str:
+            bitboardId = str(bitboardId)
+        return bitboardId
+
+    def isAnyPieceSetAtRow(self, bitboardId, i):
+        mask = 1
+        # build mask
+        for _ in range(self.sizeJ - 1):
+            mask = (mask * 2) + 1
+        mask <<= i * self.sizeJ
+        return self[bitboardId].data & mask >= 1
+
+    # Todo: test this, generated by GPT
+    def isAllPieceSetAtRow(self, bitboardId: Union[str, int], i: int) -> bool:
+        bitboardId = self.enforceStringTypeId(bitboardId)
+        # Create a mask with self.sizeJ ones and shift it to row i
+        mask = ((1 << self.sizeJ) - 1) << (i * self.sizeJ)
+        return (self[bitboardId].data & mask) == mask
+
+    # TodoL test this, generated by GPT
+    def isAllPieceSetAtColumn(self, bitboardId, j):
+        mask = 1
+        # build mask
+        for _ in range(self.sizeI - 1):
+            mask = (mask << self.sizeJ) | 1
+        mask <<= j
+        return self[bitboardId].data & mask == mask
+
+    # todo
+    def isAnyPieceSetAtColumn(self, bitboardId, j):
+        pass
+
+    def flipMovements(self, movements):
+        """
+            Flips the movements (equivalent to rotating 180 degrees)
+
+            :param movements: List of tuples representing the movements e.g [(0, 1), (1, 0)].
+            :return: List of tuples representing the flipped movements.
+        """
+        return [(-i, -j) for i, j in movements]
+
+    # params: bitboardId (piece), fromI, fromJ, possibleMovements,
+    # returns: list of moves: each move is (bitboardId, fromI, fromJ, toI, toJ)
+    # Assuming there is a piece present on (fromI, fromJ), else returns []
+    def generateMoveForAPiece(self, bitboardId, fromI, fromJ, movements):
+        if not self.isPieceSet(bitboardId, fromI, fromJ):
+            print("Warning: No piece present at (%d, %d)" % (fromI, fromJ))
+            return []
+
+        possibleMoves = []
+        for offsets in movements:
+            offsetI, offsetJ = offsets
+            if self.isLegalMove(fromI, fromJ, fromI + offsetI, fromJ + offsetJ, bitboardId):
+                possibleMoves.append((bitboardId, fromI, fromJ, fromI + offsetI, fromJ + offsetJ))
+        return possibleMoves
+
+    # pieceMovements is key value: bitboardId:[(offsetI, offsetJ]
+    # pieceLocations is key value: bitboardId:[(i,j)]
+    # returns: key value: bitboardId:[moves] (see generateMoveForAPiece)
+    def generateAllPossibleMoves(self, bitboardId, pieceMovements, pieceLocations):
+        """
+        Generate moves for a specific bitboard.
+
+        Parameters:
+          bitboardId: A string or number representing the bitboard
+          pieceMovements: dict where keys are bitboard IDs and values are lists of (dx, dy) tuples.
+          pieceLocations: dict where keys are bitboard IDs and values can be either a tuple (i, j) or a list of such tuples.
+
+        Returns:
+          A dictionary with the bitboardId as key and a list of moves as value.
+          Each move is represented as a tuple: ((fromI, fromJ), (toI, toJ)).
+        """
+        # Ensure bitboardId is a string if needed.
+        bitboardId = self.enforceStringTypeId(bitboardId)
+
+        # Retrieve the movement offsets for the specified bitboard ID.
+        if bitboardId not in pieceMovements:
+            return {bitboardId: []}
+        movements = pieceMovements[bitboardId]
+
+        # Retrieve the piece location(s). Wrap as a list if necessary.
+        if bitboardId not in pieceLocations:
+            return {bitboardId: []}
+        positions = pieceLocations[bitboardId]
+        if not isinstance(positions, list):
+            positions = [positions]
+
+        movesForId = []
+        for fromI, fromJ in positions:
+            for dx, dy in movements:
+                toI = fromI + dx
+                toJ = fromJ + dy
+                # Only add the move if destination is within bounds.
+                if self.isInBound(toI, toJ):
+                    movesForId.append(((fromI, fromJ), (toI, toJ)))
+
+        return {bitboardId: movesForId}
+
+    def getIndexOfSetBits(self, bits):
+        return [i for i in range(bits.bit_length()) if bits & (1 << i)]
+
+    def getCoordinatesOfPieces(self, bitboardId):
+        """
+        Get the coordinates of the pieces in the bitboard given id
+        :param bitboardId: Id of the bitboard
+        :return: List of coordinates of the pieces
+        """
+        bitboard_data = self.bitboardManager[bitboardId].data
+        bitboardIdSetBitsIndex = self.getIndexOfSetBits(bitboard_data)
+
+        return [self._index1dTo2d(index) for index in bitboardIdSetBitsIndex]
+
+    def _index1dTo2d(self, index):
+        row = index // self.sizeJ
+        col = index % self.sizeJ
+        if row > self.sizeI:
+            raise Exception('index out of bounds')
+
+        return row, col
+
+    def _generateZobristTableForAPiece(self, bitboardId, seed, bitsize=64):
+        zobristTableForAPiece = {}
+        currentSeed = seed
+        for i in range(self.sizeI):
+            for j in range(self.sizeJ):
+                zobristTableForAPiece[(bitboardId, i, j)] = random.Random(currentSeed).getrandbits(bitsize)
+                random.seed(currentSeed)
+                currentSeed = int(random.random() * (2 ** 32 - 1))
+
+        return zobristTableForAPiece
+        # return {
+        #     (bitboardId, i, j): random.Random(seed).getrandbits(bitsize)
+        #     for i in range(self.sizeI)
+        #     for j in range(self.sizeJ)
+        # }
+
+    def _generateZobristTable(self):
+        table = {}
+        for bitboardId in self.bitboardManager.keys():
+            table.update(self._generateZobristTableForAPiece(bitboardId, self.zobristSeed))
+        return table
+
+    # Guard function for zobrist_hash()
+    def _zobristGuard(self, additional_data_to_hash=None):
+        if self.useZobrist is False:
+            raise Exception('Zobrist hashing is not enabled')
+
+        if self.zobristTable is None:
+            self.zobristTable = self._generateZobristTable()
+
+        if additional_data_to_hash is None:
+            return []
+        else:
+            return additional_data_to_hash
+
+    # Compute zobrist hash for current board
+    def zobrist_hash(self, additional_data_to_hash=None):
+        additional_data_to_hash = self._zobristGuard(additional_data_to_hash)
+
+        zobristTableEntry = []
+        for bitboardId in self.bitboardManager.keys():
+            bitboardIdSetBitsIndex = self.getIndexOfSetBits(self.bitboardManager[bitboardId].data)
+            for index in bitboardIdSetBitsIndex:
+                i, j = self._index1dTo2d(index)
+                zobristTableEntry.append(self.zobristTable[(bitboardId, i, j)])
+
+        zobristTableEntry.extend(additional_data_to_hash)
+
+        # XOR everything in the list together
+        return reduce(lambda x, y: x ^ y, zobristTableEntry) if zobristTableEntry else 0
+
+    def __hash__(self) -> int:
+        if not self.useZobrist:
+            return super().__hash__()
+        try:
+            zhash = self.zobrist_hash()
+        except Exception:
+            return super().__hash__()
+        if zhash == 0:
+            return super().__hash__()
+        return hash(zhash)
+
+
+if __name__ == '__main__':
+    pass
+    # bm = BitboardManager()
+    # bm.buildBitboard('1', 4, 3)
+    # bm.setPiece('1', 3, 1)
+    # bm.showBitboard('1')
+    # bluePawnMovements = {'1': [(-1, 0), (-1, 1), (-1, -1)]}
+    # print(bm.generateAllPossibleMoves(bluePawnMovements, {'1': (3, 1)}))
+
+# if __name__ == '__main__':
+#     bm = BitboardManager()
+#     bm.buildBitboard('a', 4, 5)
+#     print(bm.bitboardManager['a'].data)
+#     # bm.setAllBits('a')
+#     bm.setPiece('a', 2, 2)
+#     # bm.setNeighbors('a', 1,1)
+#     # bm.deleteNeighbors('a',1,1)
+#     # bm.movePiece('a', 2, 2, 0, 0)
+#     bm.movePieceOptimized('a',2,2,0,0)
+#     bm.showBitboard('a')
+#
+#     # board = [[0, 0, 0], [0, 0, 0], [1, 1, 1], [2, 2, 2]]
+#     # bm.translateMailboxToBitboards(board)
+#     # bm.showAllBitboard()
+#     # print(bm.translateBitboardsToMailbox())
+
+
+================================================
+File: testBitboard.py
+================================================
+import time
+
+import pytest
+
+from bitboard import BitboardManager
+from timeit import timeit
+
+
+def testIsPieceSetValid():
+    bm = BitboardManager()
+    bm.buildBitboard('a', 3, 3)
+    bm.setPiece('a', 1, 1)
+    assert bm.isPieceSet('a', 1, 1) is True
+
+
+def testIsPieceSetInvalid():
+    bm = BitboardManager()
+    bm.buildBitboard('a', 3, 3)
+    bm.setPiece('a', 1, 2)
+    assert bm.isPieceSet('a', 1, 1) is False
+
+
+def testDeletePiece():
+    bm = BitboardManager()
+    bm.buildBitboard('a', 3, 3)
+    bm.setPiece('a', 1, 2)
+    assert bm.isPieceSet('a', 1, 2) is True
+    bm.deletePiece('a', 1, 2)
+    assert bm.isPieceSet('a', 1, 2) is False
+
+
+def testSetAllBitsAtRow():
+    bm = BitboardManager()
+    bm.buildBitboard('a', 4, 3)
+    bm.setAllBitsAtRow('a', 0)
+    assert bm['a'].data == 7
+
+def testIsAnyPieceSetAtRow_True():
+    bm = BitboardManager()
+    bm.buildBitboard('a', 3, 3)
+    bm.setAllBitsAtRow('a', 0)
+    assert bm.isAnyPieceSetAtRow('a', 0) is True
+
+def testIsAnyPieceSetAtRow_False():
+    bm = BitboardManager()
+    bm.buildBitboard('a', 3, 3)
+    assert bm.isAnyPieceSetAtRow('a', 0) is False
+
+def testIsAllPieceSetAtRow_True():
+    bm = BitboardManager()
+    bm.buildBitboard('a', 3, 3)
+    bm.setAllBitsAtRow('a', 0)
+    assert bm.isAllPieceSetAtRow('a', 0) is True
+
+def testIsAllPieceSetAtRow_False():
+    bm = BitboardManager()
+    bm.buildBitboard('a', 3, 3)
+    assert bm.isAllPieceSetAtRow('a', 0) is False
+
+def testIsAllPieceSetAtRow_NotAllSet_True():
+    bm = BitboardManager()
+    bm.buildBitboard('a', 3, 3)
+    bm.setPiece('a', 0, 0)
+    assert bm.isAllPieceSetAtRow('a', 0) is False
+def testGetAllPossibleMoves():
+    bm = BitboardManager()
+    bm.buildBitboard('1', 4, 3)
+    bm.setPiece('1', 3, 1)
+    bluePawnMovements = {'1': [(-1, 0), (-1, 1), (-1, -1)]}
+    assert len(bm.generateAllPossibleMoves('1', bluePawnMovements, {'1': (3, 1)})['1']) == 3
+
+
+
+def test_zobrist_hash_same_board_should_have_same_hash():
+    bm = BitboardManager(zobristSeed=12345, useZobrist=True)
+    bm.buildBitboard('1', 4, 4)
+    bm.setPiece('1', 3, 1)
+    bm.setPiece('1', 2, 2)
+    bm.setPiece('1', 3, 2)
+
+    bm.buildBitboard('2', 4, 4)
+    bm.setPiece('2', 3, 3)
+    bm.setPiece('2', 2, 3)
+    bm.setPiece('2', 3, 4)
+    zobrist_hash1 = bm.zobrist_hash()
+
+    bm2 = BitboardManager(zobristSeed=12345, useZobrist=True)
+    bm2.buildBitboard('1', 4, 4)
+    bm2.setPiece('1', 3, 1)
+    bm2.setPiece('1', 2, 2)
+    bm2.setPiece('1', 3, 2)
+
+    bm2.buildBitboard('2', 4, 4)
+    bm2.setPiece('2', 3, 3)
+    bm2.setPiece('2', 2, 3)
+    bm2.setPiece('2', 3, 4)
+
+    zobrist_hash2 = bm2.zobrist_hash()
+
+    assert zobrist_hash1 == zobrist_hash2
+
+def test_zobrist_hash_different_board_should_have_different_hash():
+    bm = BitboardManager(zobristSeed=12345, useZobrist=True)
+    bm.buildBitboard('1', 4, 4)
+    bm.setPiece('1', 3, 1)
+    bm.setPiece('1', 2, 2)
+    bm.setPiece('1', 3, 2)
+
+    bm.buildBitboard('2', 4, 4)
+    bm.setPiece('2', 3, 3)
+    bm.setPiece('2', 2, 3)
+    bm.setPiece('2', 3, 4)
+    zobrist_hash1 = bm.zobrist_hash()
+
+    bm2 = BitboardManager(zobristSeed=12345, useZobrist=True)
+    bm2.buildBitboard('1', 4, 4)
+    bm2.setPiece('1', 3, 0)
+    bm2.setPiece('1', 2, 0)
+    bm2.setPiece('1', 3, 2)
+
+    bm2.buildBitboard('2', 4, 4)
+    bm2.setPiece('2', 3, 3)
+    bm2.setPiece('2', 2, 2)
+    bm2.setPiece('2', 3, 4)
+
+    zobrist_hash2 = bm2.zobrist_hash()
+
+    assert zobrist_hash1 != zobrist_hash2
+
+
+def runMovePieceStressTest():
+    bm = BitboardManager()
+    bm.buildBitboard('1', 4, 4)
+    bm.setPiece('1', 3, 1)
+    bm.movePiece('1', 3, 1, 2, 1)
+
+
+def runMovePieceOptimizedStressTest():
+    bm = BitboardManager()
+    bm.buildBitboard('1', 4, 4)
+    bm.setPiece('1', 3, 1)
+    bm.movePieceOptimized('1', 3, 1, 2, 1)
+
+
+def runMovePieceArrayStressTest(board):
+    board = []
+
+# def testMovePieceAgainstArrayMovePiece():
+
+def test():
+    bm = BitboardManager()
+    bm.buildBitboard('1', 4, 4)
+    bm.setPiece('1', 2, 1)
+    loop = 100000
+    totalTimeBitboard = 0
+
+    for _ in range(loop):
+        start = time.time()
+        # bm.movePieceOptimized('1', 2, 1, 3, 1)
+        bm['1'].data ^= ((1 << ((2 * 4) + 1)) | (1 << ((3 * 4) + 1)))
+
+        end = time.time()
+        bm.movePieceOptimized('1', 3, 1, 2, 1)
+        totalTimeBitboard += end - start
+
+    board = [['0'] * 4 for _ in range(4)]
+    board[2][1] = '1'
+    totalTimeArray = 0
+    # testing simplest/optimal case for array allocation
+    # delete old place, and set new place
+    for _ in range(loop):
+        start = time.time()
+        board[2][1] = '0'
+        board[3][1] = '1'
+        end = time.time()
+        board[2][1] = '1'
+        board[3][1] = '0'
+        totalTimeArray += end - start
+
+    print("total time with bitboard: ", totalTimeBitboard)
+    print("total time with array: ", totalTimeArray)
+
+
+================================================
+File: example/Hexapawn.py
+================================================
+from State import State
+from bitboard import BitboardManager
+
+
+class HexapawnState(State):
+
+    def __init__(self, sizeI=3, sizeJ=3, isInitialState=True, stateInformation=None):
+        if isInitialState:
+            self.__initInitialState(sizeI, sizeJ)
+        elif stateInformation is not None:
+            self.passStateInformation(*stateInformation)
+        else:
+            raise Exception("Requires either initial state or state information")
+
+    def passStateInformation(self, depth, parent_hash, currentPlayer, bmInfoDump):
+        self.depth = depth
+        self.parent_hash = parent_hash
+        self.currentPlayer = currentPlayer
+        self.bm = BitboardManager(infoDump=bmInfoDump)
+
+
+    def __initInitialState(self, sizeI, sizeJ):
+        self.sizeI = sizeI
+        self.sizeJ = sizeJ
+        self.__initBoard()
+        self.currentPlayer = '1'
+        self.depth = 0
+
+        self.firstPlayerPawnMovements = [(-1, 0)]
+        self.firstPlayerPawnCaptureMovements = [(-1, 1), (-1, -1)]
+
+        self.secondPlayerPawnMovements = [(1, 0)]
+        self.secondPlayerPawnCaptureMovements = [(1, 1), (1, -1)]
+
+
+    def __initBoard(self):
+        self.bm = BitboardManager(self.sizeI, self.sizeJ, useZobrist=True)
+        self.bm.buildBitboard('1')
+        self.bm.buildBitboard('2')
+
+        self.bm.setPiece('2', 0, 0)
+        self.bm.setPiece('2', 0, 1)
+        self.bm.setPiece('2', 0, 2)
+
+        self.bm.setPiece('1', 2, 0)
+        self.bm.setPiece('1', 2, 1)
+        self.bm.setPiece('1', 2, 2)
+
+    def isFirstPlayerTurn(self):
+        return self.currentPlayer == '1'
+
+    def isEnd(self):
+        return self.value() == float('inf') or self.value() == float('-inf')
+    #Get value of this state. Win for first player is infinity, win for second player is -infinity
+    def value(self):
+        if self.bm.isAnyPieceSetAtRow('1', 0): return float('inf')
+
+        if self.bm.isAnyPieceSetAtRow('2', 2): return float('-inf')
+
+        if self.currentPlayer == '1' and len(self.getAllPossibleNextStates()) == 0: return float('-inf')
+
+        if self.currentPlayer == '2' and len(self.getAllPossibleNextStates()) == 0: return float('inf')
+
+        return None
+
+    def loadInfoDump(self, infoDump):
+        self.bm.loadInfo(infoDump)
+
+    def hash(self):
+        return self.bm.zobrist_hash()
+
+    def getAllPossibleNextStates(self):
+        if self.currentPlayer == '1':
+            return self.getAllPossibleNextStatesFor1()
+        else:
+            return self.getAllPossibleNextStatesFor2()
+
+    def getAllPossibleNextStatesFor1(self):
+        firstPlayerPieceCoords = self.bm.getCoordinatesOfPieces('1')
+        nextStates = []
+
+        for coord in firstPlayerPieceCoords:
+            nextStates += self.bm.generateAllPossibleMoves('1', {'1', self.firstPlayerPawnMovements}, coord)
+            nextStates += self.bm.generateAllPossibleMoves('1', {'1', self.firstPlayerPawnCaptureMovements}, coord)
+
+        return nextStates
+
+    def getAllPossibleNextStatesFor2(self):
+        secondPlayerPieceCoords = self.bm.getCoordinatesOfPieces('2')
+        nextStates = []
+
+        for coord in secondPlayerPieceCoords:
+            nextStates += self.bm.generateAllPossibleMoves('2', {'2', self.secondPlayerPawnMovements}, coord)
+            nextStates += self.bm.generateAllPossibleMoves('2', {'2', self.secondPlayerPawnCaptureMovements}, coord)
+
+        return nextStates
+
+
+if __name__ == '__main__':
+    game = HexapawnState()
+    print(game.getAllPossibleNextStates())
+
+
+================================================
+File: example/Onitama.py
+================================================
+import hashlib
+
+from State import State
+from bitboard import BitboardManager
+
+import random
+class Card:
+    def __init__(self, name, movements, startPlayerIndicator):
+        self.name = name
+        self.movements = movements
+        self.startPlayerIndicator = startPlayerIndicator
+
+
+class CardList:
+    cardList = [
+        Card("Tiger", [(1, 0), (-2, 0)], "B"),
+        Card("Dragon", [(1, -1), (1, 1), (-1, -2), (-1, 2)], "R"),
+        Card("Frog", [(-1, -1), (0, -2), (1, 1)], "R"),
+        Card("Rabbit", [(1, -1), (-1, 1), (0, 2)], "B"),
+        Card("Crab", [(-1, 0), (0, -2), (0, 2)], "B"),
+        Card("Elephant", [(0, -1), (-1, -1), (0, 1), (-1, 1)], "R"),
+        Card("Goose", [(0, -1), (-1, -1), (0, 1), (1, 1)], "B"),
+        Card("Rooster", [(0, -1), (1, -1), (0, 1), (-1, 1)], "R"),
+        Card("Monkey",[(-1,-1),(-1,1),(1,-1),(1,1)],"B"),
+        Card("Mantis", [(1,0), (-1,1), (-1,-1)], "R"),
+        Card("Horse", [(1,0), (-1,0), (0,-1)], "R"),
+        Card("Ox", [(-1,0), (1,0), (0,1)], "B"),
+        Card("Crane", [(-1,0), (1,-1), (1,1)], "B"),
+        Card("Boar", [(-1,0), (0,-1), (0,1)], "R"),
+        Card("Eel", [(0,1), (-1,-1), (1,-1)], "B"),
+        Card("Cobra", [(0,-1), (-1,1), (1,1)], "R"),
+    ]
+
+
+# Game is played from the perspective of red player
+class OnitamaState(State):
+
+    def __init__(self, isInitialState=True):
+        self.sizeI = 5
+        self.sizeJ = 5
+        self.blueTempleCoordinate = (0, 2)
+        self.redTempleCoordinate = (4, 2)
+
+        if isInitialState:
+            self.__initInitialState()
+
+    def passStateInformation(self, depth, parent_hash, currentPlayer, bluePlayerCards, redPlayerCards, neutralCard, bmInfoDump):
+        self.depth = depth
+        self.parent_hash = parent_hash
+        self.currentPlayer = currentPlayer
+        self.bm = BitboardManager(infoDump=bmInfoDump)
+        self.bluePlayerCards = bluePlayerCards
+        self.redPlayerCards = redPlayerCards
+        self.neutralCard = neutralCard
+
+
+    def __initInitialState(self):
+        self.bm = BitboardManager(self.sizeI, self.sizeJ, useZobrist=True, zobristSeed=12345)
+
+        self.redPlayerCards = []
+        self.bluePlayerCards = []
+
+        self.neutralCard = None
+
+        self.__initBoard()
+        self.__initCards()
+
+        self.currentPlayer = self.__determineFirstPlayer()
+
+        self.depth = 0
+
+    def __initCards(self):
+        firstCard = random.choice(CardList.cardList)
+        self.redPlayerCards.append(firstCard)
+        CardList.cardList.remove(firstCard)
+
+        secondCard = random.choice(CardList.cardList)
+        self.bluePlayerCards.append(secondCard)
+        CardList.cardList.remove(secondCard)
+
+        thirdCard = random.choice(CardList.cardList)
+        self.redPlayerCards.append(thirdCard)
+        CardList.cardList.remove(thirdCard)
+
+        fourthCard = random.choice(CardList.cardList)
+        self.bluePlayerCards.append(fourthCard)
+        CardList.cardList.remove(fourthCard)
+
+        self.neutralCard = random.choice(CardList.cardList)
+
+    def __initBoard(self):
+        # B = Blue master, R = Red master, b = Blue pawn, r = Red pawn
+        self.bm.buildBitboard("B")
+        self.bm.buildBitboard("b")
+
+        self.bm.buildBitboard("R")
+        self.bm.buildBitboard("r")
+
+        self.__initBluePieces()
+        self.__initRedPieces()
+
+    def __determineFirstPlayer(self):
+        return self.neutralCard.startPlayerIndicator
+
+    def __initBluePieces(self):
+        # Set master piece
+        self.bm.setPiece("B", 0, 2)
+
+        self.bm.setPiece('b', 0, 0)
+        self.bm.setPiece('b', 0, 1)
+        self.bm.setPiece('b', 0, 3)
+        self.bm.setPiece('b', 0, 4)
+
+    def __initRedPieces(self):
+        # Set master piece
+        self.bm.setPiece("R", 4, 2)
+
+        self.bm.setPiece('r', 4, 0)
+        self.bm.setPiece('r', 4, 1)
+        self.bm.setPiece('r', 4, 3)
+        self.bm.setPiece('r', 4, 4)
+
+    def isEnd(self):
+        return self.value() == float('inf') or self.value() == float('-inf')
+
+    # Blue wins -> infinity
+    # Red wins -> -infinity
+    def value(self):
+        # Is blue master at red temple? -> if yes then Blue wins
+        if self.bm.isPieceSet('B', *self.redTempleCoordinate): return float('inf')
+
+        # Is blue master alive? -> if not then Red wins
+        if self.bm.isEmpty('B'): return float('-inf')
+
+        # Is red master at blue temple? -> if yes then Red wins
+        if self.bm.isPieceSet('R', *self.blueTempleCoordinate): return float('-inf')
+
+        # Is red master alive? -> if not then blue wins
+        if self.bm.isEmpty('R'): return float('inf')
+
+        return None
+
+
+    def isFirstPlayerTurn(self):
+        return self.__determineFirstPlayer() == self.currentPlayer
+
+    def __switchPlayerTurn(self):
+        self.currentPlayer = 'B' if self.currentPlayer == 'R' else 'R'
+
+    def __getAllPossibleMovesWithCard(self, card: Card, currentPlayer):
+        pieceMovements = card.movements
+        if currentPlayer == 'B':
+            pieceLocationsPawn = self.bm.getCoordinatesOfPieces('b')
+            pieceLocationsMaster = self.bm.getCoordinatesOfPieces('B')
+            possibleMoves = self.bm.generateAllPossibleMoves('b', pieceMovements, pieceLocationsPawn)
+            possibleMoves.update(self.bm.generateAllPossibleMoves('B', pieceMovements, pieceLocationsMaster))
+        elif currentPlayer == 'R':
+            pieceLocationsPawn = self.bm.getCoordinatesOfPieces('r')
+            pieceLocationsMaster = self.bm.getCoordinatesOfPieces('R')
+            possibleMoves = self.bm.generateAllPossibleMoves('r', pieceMovements, pieceLocationsPawn)
+            possibleMoves.update(self.bm.generateAllPossibleMoves('R', pieceMovements, pieceLocationsMaster))
+        else:
+            raise Exception('Invalid player indicator')
+        return possibleMoves
+
+    #Basically generate next states
+    def getAllPossibleNextMoves(self):
+        if self.currentPlayer == 'B':
+            movesWithFirstCard = self.__getAllPossibleMovesWithCard(self.bluePlayerCards[0], 'B')
+            movesWithSecondCard = self.__getAllPossibleMovesWithCard(self.bluePlayerCards[1], 'B')
+        elif self.currentPlayer == 'R':
+            movesWithFirstCard = self.__getAllPossibleMovesWithCard(self.redPlayerCards[0], 'R')
+            movesWithSecondCard = self.__getAllPossibleMovesWithCard(self.redPlayerCards[1], 'R')
+        else:
+            raise Exception('Invalid player indicator')
+
+        return (movesWithFirstCard, movesWithSecondCard)
+
+    def generateNextStates(self, nextMoves):
+        nextStates = []
+        movesWithFirstCard, movesWithSecondCard = nextMoves
+
+        for bitboardId, moveList in movesWithFirstCard.items():
+            # return state.hash(), state.value(), state.depth, state.isEnd(), state.parent_hash, state.isFirstPlayerTurn(), None
+
+
+            state = OnitamaState(isInitialState=False)
+            state.passStateInformation(depth=self.depth + 1)
+
+
+            self.bm.moveWithCapture(bitboardId, moveList)
+
+            state.passStateInformation(depth=self.depth + 1, parent_hash=self.hash(), currentPlayer=self.__getOpponent())
+
+    def applyMove(self, state, move, cardUsed, bitboardId):
+        fromI, fromJ, toI, toJ = move
+        opponentBitboardList = ['r', 'R'] if self.currentPlayer == 'B' else ['b', 'B']
+        state.bm.moveWithCapture(bitboardId, fromI, fromJ, toI, toJ, opponentBitboardList)
+        state.switchUsedCard(cardUsed)
+        state.passStateInformation(depth=self.depth + 1, parent_hash=self.hash(), currentPlayer=self.__getOpponent(), neutralCard=state.neutralCard, bitboardId=bitboardId)
+        return state
+
+    def __getOpponent(self):
+        return 'R' if self.currentPlayer == 'B' else 'B'
+
+    def switchUsedCard(self, cardUsed):
+        #return: (firstBluePlayerCard, secondBluePlayerCard, firstRedPlayerCard, secondRedPlayerCard, neutralCard) after switching cards
+        if cardUsed == self.bluePlayerCards[0]:
+            return self.neutralCard, self.bluePlayerCards[1], self.redPlayerCards[0], self.redPlayerCards[1], self.bluePlayerCards[0]
+        elif cardUsed == self.bluePlayerCards[1]:
+            return self.bluePlayerCards[0], self.neutralCard, self.redPlayerCards[0], self.redPlayerCards[1], self.bluePlayerCards[1]
+        elif cardUsed == self.redPlayerCards[0]:
+            return self.bluePlayerCards[0], self.bluePlayerCards[1], self.neutralCard, self.redPlayerCards[1], self.redPlayerCards[0]
+        elif cardUsed == self.redPlayerCards[1]:
+            return self.bluePlayerCards[0], self.bluePlayerCards[1], self.redPlayerCards[0], self.neutralCard, self.redPlayerCards[1]
+        else:
+            raise Exception('Invalid card used')
+
+    def sha256_hash(self, text: str) -> str:
+        """Returns the SHA-256 hash of the given text."""
+        return hashlib.sha256(text.encode()).hexdigest()
+
+    def hash(self):
+        return 
+
+
+================================================
+File: example/TicTacToe.py
+================================================
+from State import State
+from bitboard import BitboardManager
+
+
+class TicTacToeState(State):
+    def __init__(self):
+        self.bm = BitboardManager()
+        self.sizeI = 3
+        self.sizeJ = 3
+        self.current_player = 'X'
+        self.isEnd = None
+    def initBoard(self, sizeI, sizeJ):
+        self.bm.buildBitboard('X', sizeI, sizeJ)
+        self.bm.buildBitboard('O', sizeI, sizeJ)
+    def value(self):
+        pass
+
+    def isFirstPlayerTurn(self):
+        pass
+
+    def getAllPossibleNextStates(self):
+        pass
+
+    def hash(self):
+        pass
+
+    def isEnd(self):
+        pass
+

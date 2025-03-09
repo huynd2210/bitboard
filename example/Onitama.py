@@ -1,3 +1,5 @@
+import hashlib
+
 from State import State
 from bitboard import BitboardManager
 
@@ -47,10 +49,13 @@ class OnitamaState(State):
         self.parent_hash = parent_hash
         self.currentPlayer = currentPlayer
         self.bm = BitboardManager(infoDump=bmInfoDump)
+        self.bluePlayerCards = bluePlayerCards
+        self.redPlayerCards = redPlayerCards
+        self.neutralCard = neutralCard
 
 
     def __initInitialState(self):
-        self.bm = BitboardManager(self.sizeI, self.sizeJ)
+        self.bm = BitboardManager(self.sizeI, self.sizeJ, useZobrist=True, zobristSeed=12345)
 
         self.redPlayerCards = []
         self.bluePlayerCards = []
@@ -159,7 +164,7 @@ class OnitamaState(State):
         return possibleMoves
 
     #Basically generate next states
-    def getAllPossibleNextStates(self):
+    def getAllPossibleNextMoves(self):
         if self.currentPlayer == 'B':
             movesWithFirstCard = self.__getAllPossibleMovesWithCard(self.bluePlayerCards[0], 'B')
             movesWithSecondCard = self.__getAllPossibleMovesWithCard(self.bluePlayerCards[1], 'B')
@@ -169,33 +174,36 @@ class OnitamaState(State):
         else:
             raise Exception('Invalid player indicator')
 
+        return (movesWithFirstCard, movesWithSecondCard)
 
-
-
-
-        return
-
-    def generateNextStates(self, movesWithFirstCard, movesWithSecondCard):
+    def generateNextStates(self, nextMoves):
         nextStates = []
+        movesWithFirstCard, movesWithSecondCard = nextMoves
+
         for bitboardId, moveList in movesWithFirstCard.items():
             # return state.hash(), state.value(), state.depth, state.isEnd(), state.parent_hash, state.isFirstPlayerTurn(), None
 
 
             state = OnitamaState(isInitialState=False)
-
+            state.passStateInformation(depth=self.depth + 1)
 
 
             self.bm.moveWithCapture(bitboardId, moveList)
 
             state.passStateInformation(depth=self.depth + 1, parent_hash=self.hash(), currentPlayer=self.__getOpponent())
 
-    def applyMove(self, move, cardUsed, bmInfoDump):
-        state = OnitamaState(isInitialState=False)
-        state.bm = BitboardManager(infoDump=bmInfoDump)
+    def applyMove(self, state, move, cardUsed, bitboardId):
+        fromI, fromJ, toI, toJ = move
+        opponentBitboardList = ['r', 'R'] if self.currentPlayer == 'B' else ['b', 'B']
+        state.bm.moveWithCapture(bitboardId, fromI, fromJ, toI, toJ, opponentBitboardList)
+        state.switchUsedCard(cardUsed)
+        state.passStateInformation(depth=self.depth + 1, parent_hash=self.hash(), currentPlayer=self.__getOpponent(), neutralCard=state.neutralCard, bitboardId=bitboardId)
+        return state
+
     def __getOpponent(self):
         return 'R' if self.currentPlayer == 'B' else 'B'
 
-    def __switchUsedCard(self, cardUsed):
+    def switchUsedCard(self, cardUsed):
         #return: (firstBluePlayerCard, secondBluePlayerCard, firstRedPlayerCard, secondRedPlayerCard, neutralCard) after switching cards
         if cardUsed == self.bluePlayerCards[0]:
             return self.neutralCard, self.bluePlayerCards[1], self.redPlayerCards[0], self.redPlayerCards[1], self.bluePlayerCards[0]
@@ -208,5 +216,9 @@ class OnitamaState(State):
         else:
             raise Exception('Invalid card used')
 
+    def sha256_hash(self, text: str) -> str:
+        """Returns the SHA-256 hash of the given text."""
+        return hashlib.sha256(text.encode()).hexdigest()
+
     def hash(self):
-        pass
+        return 

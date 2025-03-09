@@ -1,0 +1,4 @@
+numpy==1.26.3
+gymnasium==0.28.1
+tqdm==4.66.1
+duckdb==0.10.0 
