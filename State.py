@@ -2,6 +2,8 @@ from abc import ABC, abstractmethod
 
 import copy
 class State(ABC):
+    parent_hash = None
+    depth = 0
     @abstractmethod
     def isEnd(self):
         pass
@@ -16,7 +18,7 @@ class State(ABC):
         pass
 
     @abstractmethod
-    def getAllPossibleMoves(self):
+    def getAllPossibleNextStates(self):
         pass
 
     @abstractmethod

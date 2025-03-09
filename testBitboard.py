@@ -2,7 +2,6 @@ import time
 
 import pytest
 
-import PawnRevolt
 from bitboard import BitboardManager
 from timeit import timeit
 
@@ -36,13 +35,97 @@ def testSetAllBitsAtRow():
     bm.setAllBitsAtRow('a', 0)
     assert bm['a'].data == 7
 
+def testIsAnyPieceSetAtRow_True():
+    bm = BitboardManager()
+    bm.buildBitboard('a', 3, 3)
+    bm.setAllBitsAtRow('a', 0)
+    assert bm.isAnyPieceSetAtRow('a', 0) is True
 
+def testIsAnyPieceSetAtRow_False():
+    bm = BitboardManager()
+    bm.buildBitboard('a', 3, 3)
+    assert bm.isAnyPieceSetAtRow('a', 0) is False
+
+def testIsAllPieceSetAtRow_True():
+    bm = BitboardManager()
+    bm.buildBitboard('a', 3, 3)
+    bm.setAllBitsAtRow('a', 0)
+    assert bm.isAllPieceSetAtRow('a', 0) is True
+
+def testIsAllPieceSetAtRow_False():
+    bm = BitboardManager()
+    bm.buildBitboard('a', 3, 3)
+    assert bm.isAllPieceSetAtRow('a', 0) is False
+
+def testIsAllPieceSetAtRow_NotAllSet_True():
+    bm = BitboardManager()
+    bm.buildBitboard('a', 3, 3)
+    bm.setPiece('a', 0, 0)
+    assert bm.isAllPieceSetAtRow('a', 0) is False
 def testGetAllPossibleMoves():
     bm = BitboardManager()
     bm.buildBitboard('1', 4, 3)
     bm.setPiece('1', 3, 1)
     bluePawnMovements = {'1': [(-1, 0), (-1, 1), (-1, -1)]}
-    assert len(bm.generateAllPossibleMoves(bluePawnMovements, {'1': (3, 1)})['1']) == 3
+    assert len(bm.generateAllPossibleMoves('1', bluePawnMovements, {'1': (3, 1)})['1']) == 3
+
+
+
+def test_zobrist_hash_same_board_should_have_same_hash():
+    bm = BitboardManager(zobristSeed=12345, useZobrist=True)
+    bm.buildBitboard('1', 4, 4)
+    bm.setPiece('1', 3, 1)
+    bm.setPiece('1', 2, 2)
+    bm.setPiece('1', 3, 2)
+
+    bm.buildBitboard('2', 4, 4)
+    bm.setPiece('2', 3, 3)
+    bm.setPiece('2', 2, 3)
+    bm.setPiece('2', 3, 4)
+    zobrist_hash1 = bm.zobrist_hash()
+
+    bm2 = BitboardManager(zobristSeed=12345, useZobrist=True)
+    bm2.buildBitboard('1', 4, 4)
+    bm2.setPiece('1', 3, 1)
+    bm2.setPiece('1', 2, 2)
+    bm2.setPiece('1', 3, 2)
+
+    bm2.buildBitboard('2', 4, 4)
+    bm2.setPiece('2', 3, 3)
+    bm2.setPiece('2', 2, 3)
+    bm2.setPiece('2', 3, 4)
+
+    zobrist_hash2 = bm2.zobrist_hash()
+
+    assert zobrist_hash1 == zobrist_hash2
+
+def test_zobrist_hash_different_board_should_have_different_hash():
+    bm = BitboardManager(zobristSeed=12345, useZobrist=True)
+    bm.buildBitboard('1', 4, 4)
+    bm.setPiece('1', 3, 1)
+    bm.setPiece('1', 2, 2)
+    bm.setPiece('1', 3, 2)
+
+    bm.buildBitboard('2', 4, 4)
+    bm.setPiece('2', 3, 3)
+    bm.setPiece('2', 2, 3)
+    bm.setPiece('2', 3, 4)
+    zobrist_hash1 = bm.zobrist_hash()
+
+    bm2 = BitboardManager(zobristSeed=12345, useZobrist=True)
+    bm2.buildBitboard('1', 4, 4)
+    bm2.setPiece('1', 3, 0)
+    bm2.setPiece('1', 2, 0)
+    bm2.setPiece('1', 3, 2)
+
+    bm2.buildBitboard('2', 4, 4)
+    bm2.setPiece('2', 3, 3)
+    bm2.setPiece('2', 2, 2)
+    bm2.setPiece('2', 3, 4)
+
+    zobrist_hash2 = bm2.zobrist_hash()
+
+    assert zobrist_hash1 != zobrist_hash2
 
 
 def runMovePieceStressTest():
@@ -61,13 +144,6 @@ def runMovePieceOptimizedStressTest():
 
 def runMovePieceArrayStressTest(board):
     board = []
-
-
-def testMovePieceAgainstOptimizedMovePiece():
-    timeNormal = timeit(lambda: runMovePieceStressTest(), number=100000)
-    timeOptimized = timeit(lambda: runMovePieceOptimizedStressTest(), number=100000)
-    assert timeOptimized > timeNormal
-
 
 # def testMovePieceAgainstArrayMovePiece():
 
@@ -103,9 +179,3 @@ def test():
 
     print("total time with bitboard: ", totalTimeBitboard)
     print("total time with array: ", totalTimeArray)
-
-if __name__ == '__main__':
-    game = PawnRevolt.Game
-    print(game.getAllPossibleMoves(True))
-
-    # test()

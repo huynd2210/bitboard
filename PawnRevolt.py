@@ -28,10 +28,10 @@ class Game:
         self.bm.showAllBitboard()
 
     def is_over(self):
-        if self.bm.isRowAnyPieceSet('1', 0):
+        if self.bm.isAnyPieceSetAtRow('1', 0):
             self.winner = '1'
             return True
-        if self.bm.isRowAnyPieceSet('2', self.bm.sizeI - 1):
+        if self.bm.isAnyPieceSetAtRow('2', self.bm.sizeI - 1):
             self.winner = '2'
             return True
         if self.bm.isEmpty('1'):

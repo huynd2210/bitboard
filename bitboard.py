@@ -1,6 +1,7 @@
 import time
 from functools import lru_cache, reduce
 import random
+from typing import Union, Dict, List
 
 
 class Bitboard:
@@ -15,12 +16,25 @@ class Bitboard:
 
 # start from top left to bottom right, i.e 1 = 1 at (0,0)
 class BitboardManager:
-    def __init__(self):
-        self.bitboardManager = {}
-        self.sizeI = 0
-        self.sizeJ = 0
-        self.zobristTable = self.generateZobristTable()
+    def __init__(self, sizeI=0, sizeJ=0, useZobrist=False, zobristSeed=None, infoDump=None):
+        if infoDump is not None:
+            self.loadInfo(infoDump)
+            return
 
+        self.bitboardManager = {}
+        self.sizeI = sizeI
+        self.sizeJ = sizeJ
+        self.useZobrist = useZobrist
+        if zobristSeed is None:
+            self.zobristSeed = time.time()
+        self.zobristSeed = zobristSeed
+        self.zobristTable = None
+
+    def dumpInfo(self):
+        return (self.bitboardManager, self.sizeI, self.sizeJ, self.zobristSeed, self.zobristTable)
+
+    def loadInfo(self, infoDump):
+        self.bitboardManager, self.sizeI, self.sizeJ, self.zobristSeed, self.zobristTable = infoDump
 
     def __getitem__(self, item):
         return self.bitboardManager[item]
@@ -52,7 +66,12 @@ class BitboardManager:
                         board[i][j] = bitboardId
         return board
 
-    def buildBitboard(self, bitboardId, sizeI, sizeJ):
+    def buildBitboard(self, bitboardId, sizeI=None, sizeJ=None):
+        if sizeI is None:
+            sizeI = self.sizeI
+        if sizeJ is None:
+            sizeJ = self.sizeJ
+
         bitboardId = self.enforceStringTypeId(bitboardId)
         self.bitboardManager[bitboardId] = Bitboard(0, sizeI, sizeJ)
         self.sizeI = sizeI
@@ -79,7 +98,6 @@ class BitboardManager:
         pad = '0' * (maxSize - len(board))
         return pad + board
 
-    @lru_cache(maxsize=None)
     def isInBound(self, i, j):
         return 0 <= i < self.sizeI and 0 <= j < self.sizeJ
 
@@ -94,6 +112,7 @@ class BitboardManager:
         piecePosition = (i * bitboard.sizeJ) + j
         return ((bitboard.data >> piecePosition) & 1) == 1
 
+    # Set piece at (i,j), which basically means set a bit at (i,j)
     def setPiece(self, bitboardId, i, j):
         bitboardId = self.enforceStringTypeId(bitboardId)
         bitboard = self.bitboardManager[bitboardId]
@@ -109,12 +128,6 @@ class BitboardManager:
             return
         piecePosition = (i * bitboard.sizeJ) + j
         bitboard.data = bitboard.data & ~(1 << piecePosition)
-
-    # can be optimized using bit shifts
-    # def movePiece(self, bitboardId, fromI, fromJ, toI, toJ):
-    #     if self.isPieceSet(bitboardId, fromI, fromJ):
-    #         self.deletePiece(bitboardId, fromI, fromJ)
-    #         self.setPiece(bitboardId, toI, toJ)
 
     def move(self, move):
         bitboardId, fromI, fromJ, toI, toJ = move
@@ -140,9 +153,8 @@ class BitboardManager:
                 if self.isPieceSet(opponentBitboardId, toI, toJ):
                     self.deletePiece(opponentBitboardId, toI, toJ)
 
-
     # capture a piece, only if destination to have enemy piece
-    def moveAndCaptureIfPossible(self, bitboardId, fromI, fromJ, toI, toJ, opponentBitboardIdList):
+    def moveAndCaptureOnlyIfPossible(self, bitboardId, fromI, fromJ, toI, toJ, opponentBitboardIdList):
         for opponentBitboardId, data in self.bitboardManager.items():
             if (
                     bitboardId != opponentBitboardId
@@ -153,19 +165,37 @@ class BitboardManager:
                 self.deletePiece(opponentBitboardId, toI, toJ)
 
     # classical game, piece cannot capture same piece type
-    def isLegalMove(self, fromI, fromJ, toI, toJ, originBitboardId):
+    def isLegalMove(self, fromI, fromJ, toI, toJ, originBitboardId, isCaptureOnly=False, targetBitboardId=None):
+        """
+        :param fromI: Index of the row from where piece is moved
+        :param fromJ: Index of the column from where piece is moved
+        :param toI: Index of the row to where piece is moved
+        :param toJ: Index of the column to where piece is moved
+        :param originBitboardId: bitboardId of the piece being moved
+        :param isCaptureOnly: True if only the move result in a capture.\
+         False if the move can be both a normal move or a capture. \
+         Set to true if for example when dealing with a pawn in chess
+        :param targetBitboardId: bitboardId of the piece being captured, only needed if isCaptureOnly is true
+        :return: True if move is legal, False otherwise
+
+        """
         if fromI == toI and fromJ == toJ:
             return False
 
         if not self.isInBound(fromI, fromJ) or not self.isInBound(toI, toJ):
             return False
 
+        if isCaptureOnly:
+            if targetBitboardId is None: raise ValueError("targetBitboardId cannot be None if isCaptureOnly is True")
+            if not self.isPieceSet(targetBitboardId, toI, toJ):
+                return False
+
         for bitboardId, bitboard in self.bitboardManager.items():
 
             # basically self.isPieceSet but without checks
             originPiecePosition = (fromI * bitboard.sizeJ) + fromJ
             destinationPiecePosition = (toI * bitboard.sizeJ) + toJ \
-            # if origin is not set then false
+                # if origin is not set then false
             if ((bitboard.data >> originPiecePosition) & 1) == 0 and bitboardId == originBitboardId:
                 return False
 
@@ -269,7 +299,7 @@ class BitboardManager:
             bitboardId = str(bitboardId)
         return bitboardId
 
-    def isRowAnyPieceSet(self, bitboardId, i):
+    def isAnyPieceSetAtRow(self, bitboardId, i):
         mask = 1
         # build mask
         for _ in range(self.sizeJ - 1):
@@ -277,14 +307,41 @@ class BitboardManager:
         mask <<= i * self.sizeJ
         return self[bitboardId].data & mask >= 1
 
+    # Todo: test this, generated by GPT
+    def isAllPieceSetAtRow(self, bitboardId: Union[str, int], i: int) -> bool:
+        bitboardId = self.enforceStringTypeId(bitboardId)
+        # Create a mask with self.sizeJ ones and shift it to row i
+        mask = ((1 << self.sizeJ) - 1) << (i * self.sizeJ)
+        return (self[bitboardId].data & mask) == mask
+
+    # TodoL test this, generated by GPT
+    def isAllPieceSetAtColumn(self, bitboardId, j):
+        mask = 1
+        # build mask
+        for _ in range(self.sizeI - 1):
+            mask = (mask << self.sizeJ) | 1
+        mask <<= j
+        return self[bitboardId].data & mask == mask
+
     # todo
-    def isBitboardContainsSetBitAtColumn(self, j, bitboardId):
+    def isAnyPieceSetAtColumn(self, bitboardId, j):
         pass
 
+    def flipMovements(self, movements):
+        """
+            Flips the movements (equivalent to rotating 180 degrees)
+
+            :param movements: List of tuples representing the movements e.g [(0, 1), (1, 0)].
+            :return: List of tuples representing the flipped movements.
+        """
+        return [(-i, -j) for i, j in movements]
+
     # params: bitboardId (piece), fromI, fromJ, possibleMovements,
-    # returns: list of moves (bitboardId, fromI, fromJ, toI, toJ)
+    # returns: list of moves: each move is (bitboardId, fromI, fromJ, toI, toJ)
+    # Assuming there is a piece present on (fromI, fromJ), else returns []
     def generateMoveForAPiece(self, bitboardId, fromI, fromJ, movements):
         if not self.isPieceSet(bitboardId, fromI, fromJ):
+            print("Warning: No piece present at (%d, %d)" % (fromI, fromJ))
             return []
 
         possibleMoves = []
@@ -298,20 +355,57 @@ class BitboardManager:
     # pieceLocations is key value: bitboardId:[(i,j)]
     # returns: key value: bitboardId:[moves] (see generateMoveForAPiece)
     def generateAllPossibleMoves(self, bitboardId, pieceMovements, pieceLocations):
-        allPossibleMoves = {}
-        movementOffsets = pieceMovements[bitboardId]
-        # fromI, fromJ = pieceLocations[bitboardId]
+        """
+        Generate moves for a specific bitboard.
 
-        for pieceLocation in pieceLocations[bitboardId]:
-            fromI, fromJ = pieceLocation
-            if bitboardId not in allPossibleMoves:
-                allPossibleMoves[bitboardId] = self.generateMoveForAPiece(bitboardId, fromI, fromJ, movementOffsets)
-            else:
-                allPossibleMoves[bitboardId] += self.generateMoveForAPiece(bitboardId, fromI, fromJ, movementOffsets)
-        return allPossibleMoves
+        Parameters:
+          bitboardId: A string or number representing the bitboard
+          pieceMovements: dict where keys are bitboard IDs and values are lists of (dx, dy) tuples.
+          pieceLocations: dict where keys are bitboard IDs and values can be either a tuple (i, j) or a list of such tuples.
+
+        Returns:
+          A dictionary with the bitboardId as key and a list of moves as value.
+          Each move is represented as a tuple: ((fromI, fromJ), (toI, toJ)).
+        """
+        # Ensure bitboardId is a string if needed.
+        bitboardId = self.enforceStringTypeId(bitboardId)
+
+        # Retrieve the movement offsets for the specified bitboard ID.
+        if bitboardId not in pieceMovements:
+            return {bitboardId: []}
+        movements = pieceMovements[bitboardId]
+
+        # Retrieve the piece location(s). Wrap as a list if necessary.
+        if bitboardId not in pieceLocations:
+            return {bitboardId: []}
+        positions = pieceLocations[bitboardId]
+        if not isinstance(positions, list):
+            positions = [positions]
+
+        movesForId = []
+        for fromI, fromJ in positions:
+            for dx, dy in movements:
+                toI = fromI + dx
+                toJ = fromJ + dy
+                # Only add the move if destination is within bounds.
+                if self.isInBound(toI, toJ):
+                    movesForId.append(((fromI, fromJ), (toI, toJ)))
+
+        return {bitboardId: movesForId}
 
     def getIndexOfSetBits(self, bits):
         return [i for i in range(bits.bit_length()) if bits & (1 << i)]
+
+    def getCoordinatesOfPieces(self, bitboardId):
+        """
+        Get the coordinates of the pieces in the bitboard given id
+        :param bitboardId: Id of the bitboard
+        :return: List of coordinates of the pieces
+        """
+        bitboard_data = self.bitboardManager[bitboardId].data
+        bitboardIdSetBitsIndex = self.getIndexOfSetBits(bitboard_data)
+
+        return [self._index1dTo2d(index) for index in bitboardIdSetBitsIndex]
 
     def _index1dTo2d(self, index):
         row = index // self.sizeJ
@@ -322,37 +416,69 @@ class BitboardManager:
         return row, col
 
     def _generateZobristTableForAPiece(self, bitboardId, seed, bitsize=64):
-        return {
-            (bitboardId, i, j): random.Random(seed).getrandbits(bitsize)
-            for i in range(self.sizeI)
-            for j in range(self.sizeJ)
-        }
+        zobristTableForAPiece = {}
+        currentSeed = seed
+        for i in range(self.sizeI):
+            for j in range(self.sizeJ):
+                zobristTableForAPiece[(bitboardId, i, j)] = random.Random(currentSeed).getrandbits(bitsize)
+                random.seed(currentSeed)
+                currentSeed = int(random.random() * (2 ** 32 - 1))
 
-    def generateZobristTable(self, seed=time.time()):
+        return zobristTableForAPiece
+        # return {
+        #     (bitboardId, i, j): random.Random(seed).getrandbits(bitsize)
+        #     for i in range(self.sizeI)
+        #     for j in range(self.sizeJ)
+        # }
+
+    def _generateZobristTable(self):
         table = {}
         for bitboardId in self.bitboardManager.keys():
-            table.update(self._generateZobristTableForAPiece(bitboardId, seed))
+            table.update(self._generateZobristTableForAPiece(bitboardId, self.zobristSeed))
         return table
 
-    #Compute zobrist hash for current board
-    def zobrist_hash(self, additional_data_to_hash=None):
+    # Guard function for zobrist_hash()
+    def _zobristGuard(self, additional_data_to_hash=None):
+        if self.useZobrist is False:
+            raise Exception('Zobrist hashing is not enabled')
+
+        if self.zobristTable is None:
+            self.zobristTable = self._generateZobristTable()
+
         if additional_data_to_hash is None:
-            additional_data_to_hash = []
-        zobristTableRntry = []
+            return []
+        else:
+            return additional_data_to_hash
+
+    # Compute zobrist hash for current board
+    def zobrist_hash(self, additional_data_to_hash=None):
+        additional_data_to_hash = self._zobristGuard(additional_data_to_hash)
+
+        zobristTableEntry = []
         for bitboardId in self.bitboardManager.keys():
             bitboardIdSetBitsIndex = self.getIndexOfSetBits(self.bitboardManager[bitboardId].data)
             for index in bitboardIdSetBitsIndex:
                 i, j = self._index1dTo2d(index)
-                zobristTableRntry.append(self.zobristTable[(bitboardId, i, j)])
+                zobristTableEntry.append(self.zobristTable[(bitboardId, i, j)])
 
-        zobristTableRntry.extend(additional_data_to_hash)
-        return reduce(lambda x, y: x ^ y, zobristTableRntry)
+        zobristTableEntry.extend(additional_data_to_hash)
 
-    def __hash__(self):
-        return hash(self.zobrist_hash())
+        # XOR everything in the list together
+        return reduce(lambda x, y: x ^ y, zobristTableEntry) if zobristTableEntry else 0
+
+    def __hash__(self) -> int:
+        if not self.useZobrist:
+            return super().__hash__()
+        try:
+            zhash = self.zobrist_hash()
+        except Exception:
+            return super().__hash__()
+        if zhash == 0:
+            return super().__hash__()
+        return hash(zhash)
+
 
 if __name__ == '__main__':
-    
     pass
     # bm = BitboardManager()
     # bm.buildBitboard('1', 4, 3)
@@ -360,7 +486,6 @@ if __name__ == '__main__':
     # bm.showBitboard('1')
     # bluePawnMovements = {'1': [(-1, 0), (-1, 1), (-1, -1)]}
     # print(bm.generateAllPossibleMoves(bluePawnMovements, {'1': (3, 1)}))
-
 
 # if __name__ == '__main__':
 #     bm = BitboardManager()

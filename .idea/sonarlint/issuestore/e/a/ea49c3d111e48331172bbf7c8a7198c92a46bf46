@@ -1,4 +1,4 @@
 
-opython:S930-"SAdd 1 missing arguments; 'generateAllPossibleMoves' expects 3 positional arguments.(ŞÅœŠûÿÿÿÿ
-Apython:S1481?")Remove the unused local variable "board".(¥ÓÛ
-epython:S1226>"MIntroduce a new variable or use its initial value before reassigning 'board'.(Ï¢Ø
+vpython:S930G"SAdd 1 missing arguments; 'generateAllPossibleMoves' expects 3 positional arguments.(ŞÅœŠûÿÿÿÿ8Æª«úœ2
+Ipython:S1481’")Remove the unused local variable "board".(¥ÓÛ8Çª«úœ2
+mpython:S1226‘"MIntroduce a new variable or use its initial value before reassigning 'board'.(Ï¢Ø8Çª«úœ2
